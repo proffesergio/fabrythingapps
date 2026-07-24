@@ -803,10 +803,10 @@ module.exports = { preset: 'ts-jest', testEnvironment: 'node' };
 `packages/core/src/env.ts`:
 ```ts
 export function getApiBaseUrl(): string {
-  return process.env.EXPO_PUBLIC_API_URL ?? 'https://fabrything-api.onrender.com/api/';
+  return process.env.EXPO_PUBLIC_API_URL ?? 'https://fabrythingweb.onrender.com/api/';
 }
 ```
-> Replace the fallback with the real Render API URL once known; apps override via `EXPO_PUBLIC_API_URL`.
+> Real Render API base is `https://fabrythingweb.onrender.com/api/`. Apps override via `EXPO_PUBLIC_API_URL`.
 `packages/core/src/index.ts`:
 ```ts
 export { getApiBaseUrl } from './env';
