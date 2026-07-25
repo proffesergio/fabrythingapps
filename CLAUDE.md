@@ -122,5 +122,7 @@ refresh is `store/auth/refresh/`. Do not assume a `/me` call or a nested
 - Design spec: `docs/superpowers/specs/2026-07-24-mobile-foundation-design.md`
 - Implementation plan: `docs/superpowers/plans/2026-07-24-mobile-foundation.md`
 - Release / EAS build & submit guide: `docs/RELEASE.md`
+- Handoff (push to GitHub, resume on another machine, build test APKs,
+  what's shipped vs. pending): `docs/HANDOFF.md`
 - Backend + web repo (the API contract lives here): sibling directory
   `../fabrythingweb`
