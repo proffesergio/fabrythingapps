@@ -1,0 +1,10 @@
+{
+  "name": "fabrything-apps",
+  "private": true,
+  "workspaces": ["packages/*", "apps/*"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "tsc -b"
+  }
+}
