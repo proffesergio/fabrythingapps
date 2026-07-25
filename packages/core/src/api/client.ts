@@ -16,14 +16,18 @@ export function createApiClient(store: TokenStore): AxiosInstance {
     (r) => r,
     async (error: AxiosError) => {
       const original: any = error.config;
-      if (error.response?.status === 401 && original && !original._retried) {
+      if (error.response?.status === 401 && original && !original._retried && !original._isRefreshCall) {
         original._retried = true;
         if (!refreshing) {
           refreshing = (async () => {
             const refresh = await store.getRefresh();
             if (!refresh) return null;
             try {
-              const res = await api.post('store/auth/refresh/', { refresh });
+              const res = await api.post(
+                'store/auth/refresh/',
+                { refresh },
+                { _isRefreshCall: true } as any,
+              );
               await store.setTokens(res.data.access, res.data.refresh ?? refresh);
               return res.data.access as string;
             } catch {
