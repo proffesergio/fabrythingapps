@@ -9,3 +9,4 @@ export * from './i18n';
 export * from './config/version';
 export * from './config/mobileConfig';
 export * from './theme/tokens';
+export * from './push/register';
