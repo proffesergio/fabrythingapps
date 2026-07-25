@@ -1,0 +1,12 @@
+export const endpoints = {
+  login: 'store/auth/login/',
+  refresh: 'store/auth/refresh/',
+  restaurants: 'food/restaurants/',
+  riderMe: 'food/rider/me/',
+  vendorRestaurant: 'food/vendor/restaurant/',
+  deviceRegister: 'food/devices/register/',
+  deviceUnregister: 'food/devices/unregister/',
+  riderPrivacy: 'food/rider/privacy/',
+  mobileConfig: 'food/mobile/config/',
+  notifications: 'food/notifications/',
+} as const;
