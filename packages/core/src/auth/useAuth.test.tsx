@@ -60,3 +60,49 @@ test('AuthProvider stays signed-out when no token is stored', async () => {
   expect(latest?.role).toBeNull();
   expect(latest?.username).toBeNull();
 });
+
+test('AuthProvider stays signed-out and clears loading when the stored token is corrupt', async () => {
+  const store: TokenStore = {
+    getAccess: async () => 'not-a-jwt',
+    getRefresh: async () => null,
+    setTokens: async () => {},
+    clear: async () => {},
+  };
+  const api = {} as AxiosInstance;
+
+  let latest: ReturnType<typeof useAuth> | undefined;
+  await act(async () => {
+    create(
+      <AuthProvider api={api} store={store}>
+        <Probe onState={(s) => { latest = s; }} />
+      </AuthProvider>,
+    );
+  });
+
+  expect(latest?.loading).toBe(false);
+  expect(latest?.role).toBeNull();
+  expect(latest?.username).toBeNull();
+});
+
+test('AuthProvider clears loading and stays signed-out when getAccess() rejects', async () => {
+  const store: TokenStore = {
+    getAccess: async () => { throw new Error('keystore corrupted'); },
+    getRefresh: async () => null,
+    setTokens: async () => {},
+    clear: async () => {},
+  };
+  const api = {} as AxiosInstance;
+
+  let latest: ReturnType<typeof useAuth> | undefined;
+  await act(async () => {
+    create(
+      <AuthProvider api={api} store={store}>
+        <Probe onState={(s) => { latest = s; }} />
+      </AuthProvider>,
+    );
+  });
+
+  expect(latest?.loading).toBe(false);
+  expect(latest?.role).toBeNull();
+  expect(latest?.username).toBeNull();
+});

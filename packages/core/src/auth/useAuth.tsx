@@ -17,17 +17,31 @@ export function AuthProvider({ api, store, children }:
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
-    store.getAccess().then((access) => {
-      if (access) {
-        try {
-          const claims = jwtDecode<AccessClaims>(access);
-          setSession({ role: claims.role ?? '', username: claims.username ?? '' });
-        } catch {
-          // Corrupt or undecodable stored token: treat as signed out.
+    let cancelled = false;
+    (async () => {
+      try {
+        const access = await store.getAccess();
+        if (access) {
+          try {
+            const claims = jwtDecode<AccessClaims>(access);
+            if (!cancelled) {
+              setSession({ role: claims.role ?? '', username: claims.username ?? '' });
+            }
+          } catch {
+            // Corrupt or undecodable stored token: treat as signed out.
+          }
+        }
+      } catch {
+        // getAccess() rejected (e.g. corrupted keystore entry): treat as signed out.
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
         }
       }
-      setLoading(false);
-    });
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [store]);
   const signIn = async (id: string, pw: string) => {
     const res = await doLogin(api, id, pw);
