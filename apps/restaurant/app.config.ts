@@ -16,7 +16,7 @@ const config: ExpoConfig = {
     package: 'com.fabrything.restaurant',
     adaptiveIcon: {
       foregroundImage: './assets/android-icon-foreground.png',
-      backgroundColor: '#F7A81B',
+      backgroundColor: '#F4A62A',
     },
   },
   plugins: [
@@ -29,7 +29,7 @@ const config: ExpoConfig = {
       {
         image: './assets/splash-icon.png',
         resizeMode: 'contain',
-        backgroundColor: '#F7A81B',
+        backgroundColor: '#F4A62A',
       },
     ],
   ],
