@@ -880,7 +880,7 @@ test('refreshes once on 401 then retries', async () => {
   const mock = new MockAdapter(api);
   let calls = 0;
   mock.onGet('/food/rider/me/').reply(() => (++calls === 1 ? [401, {}] : [200, { ok: true }]));
-  mock.onPost('/auth/refresh/').reply(200, { access: 'A2', refresh: 'R2' });
+  mock.onPost('/store/auth/refresh/').reply(200, { access: 'A2', refresh: 'R2' });
   const res = await api.get('/food/rider/me/');
   expect(res.data).toEqual({ ok: true });
   expect(await store.getAccess()).toBe('A2');
@@ -931,7 +931,7 @@ export function createApiClient(store: TokenStore): AxiosInstance {
             const refresh = await store.getRefresh();
             if (!refresh) return null;
             try {
-              const res = await axios.post(`${getApiBaseUrl()}auth/refresh/`, { refresh });
+              const res = await axios.post(`${getApiBaseUrl()}store/auth/refresh/`, { refresh });
               await store.setTokens(res.data.access, res.data.refresh ?? refresh);
               return res.data.access as string;
             } catch {
@@ -953,11 +953,12 @@ export function createApiClient(store: TokenStore): AxiosInstance {
   return api;
 }
 ```
-> Confirm the backend refresh route path (`auth/refresh/` vs `auth/token/refresh/`) by checking `fabrythingweb` `config/urls.py`; set the exact path here and in the test.
+> Resolved: the backend refresh route is `store/auth/refresh/` (storefront is mounted at `/api/store/`). It returns a **flat** `{access, refresh, message}` and re-issues tokens via the same `issue_tokens` helper as login, so the refreshed access keeps its `role`/`username` claims.
 `packages/core/src/api/endpoints.ts`:
 ```ts
 export const endpoints = {
-  login: 'auth/login/',
+  login: 'store/auth/login/',
+  refresh: 'store/auth/refresh/',
   restaurants: 'food/restaurants/',
   riderMe: 'food/rider/me/',
   vendorRestaurant: 'food/vendor/restaurant/',
@@ -992,7 +993,7 @@ git add -A && git commit -m "feat(core): axios client with JWT attach + single-f
 
 **Interfaces:**
 - Consumes: `createApiClient`, `endpoints`, `TokenStore` (Task 8).
-- Produces: `makeSecureTokenStore()` (expo-secure-store backed, implements `TokenStore`); `login(api, identifier, password) -> {access, refresh, user}`; `AuthProvider` + `useAuth()` (`{user, role, signIn, signOut, loading}`).
+- Produces: `makeSecureTokenStore()` (expo-secure-store backed, implements `TokenStore`); `login(api, identifier, password) -> {access, refresh, role, username}` (role/username decoded from the JWT access claim); `AuthProvider` + `useAuth()` (`{role, username, signIn, signOut, loading}`).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1005,16 +1006,23 @@ import { login } from './login';
 const store = () => ({ getAccess: async () => null, getRefresh: async () => null,
   setTokens: async () => {}, clear: async () => {} });
 
-test('login posts credentials and returns tokens', async () => {
+function makeJwt(payload: object): string {
+  const b64 = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  return `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64(payload)}.sig`;
+}
+
+test('login decodes role and username from the JWT access claim', async () => {
   const api = createApiClient(store());
   const mock = new MockAdapter(api);
-  mock.onPost('/auth/login/').reply(200, { data: { access: 'A', refresh: 'R', user: { role: 'Rider' } } });
+  const access = makeJwt({ role: 'Rider', username: 'r1' });
+  mock.onPost('/store/auth/login/').reply(200, { access, refresh: 'R', message: 'Login successful' });
   const res = await login(api, '01700000000', 'pw');
-  expect(res.access).toBe('A');
-  expect(res.user.role).toBe('Rider');
+  expect(res.access).toBe(access);
+  expect(res.role).toBe('Rider');
+  expect(res.username).toBe('r1');
 });
 ```
-> Adjust the mocked response shape to match the real `/api/auth/login` payload (inspect the web login call in `fabrythingweb` frontend). Keep the test and `login()` parsing in sync.
+> The real backend login (`/api/store/auth/login/`, used by customer, rider, AND restaurant — the web rider login does the same) returns a **flat** `{access, refresh, message}` with **no user object**; `role`/`username` are claims embedded on the access token. `login()` therefore decodes them with `jwt-decode`.
 
 - [ ] **Step 2: Run test → FAIL** (`npm --workspace @fabrything/core test -- login`).
 
@@ -1043,40 +1051,48 @@ export function makeSecureTokenStore(): TokenStore {
 `packages/core/src/auth/login.ts`:
 ```ts
 import { AxiosInstance } from 'axios';
+import { jwtDecode } from 'jwt-decode';
 import { endpoints } from '../api/endpoints';
 
-export interface LoginResult { access: string; refresh: string; user: { role: string; [k: string]: any }; }
+export interface LoginResult { access: string; refresh: string; role: string; username: string; }
+
+interface AccessClaims { role?: string; username?: string; }
 
 export async function login(api: AxiosInstance, identifier: string, password: string): Promise<LoginResult> {
+  // Backend login returns a flat {access, refresh, message}; role/username are
+  // claims on the access token, not in the body.
   const res = await api.post(endpoints.login, { username: identifier, password });
-  const d = res.data.data ?? res.data;
-  return { access: d.access, refresh: d.refresh, user: d.user };
+  const { access, refresh } = res.data;
+  const claims = jwtDecode<AccessClaims>(access);
+  return { access, refresh, role: claims.role ?? '', username: claims.username ?? '' };
 }
 ```
+> Add the dep first: `npm i jwt-decode -w @fabrything/core` (small, RN-safe, handles base64url).
 `packages/core/src/auth/useAuth.tsx`:
 ```tsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AxiosInstance } from 'axios';
 import { TokenStore } from '../api/tokenStore';
-import { login as doLogin, LoginResult } from './login';
+import { login as doLogin } from './login';
 
-type AuthState = { user: LoginResult['user'] | null; role: string | null; loading: boolean;
+type Session = { role: string; username: string };
+type AuthState = { role: string | null; username: string | null; loading: boolean;
   signIn: (id: string, pw: string) => Promise<void>; signOut: () => Promise<void>; };
 
 const Ctx = createContext<AuthState | null>(null);
 
 export function AuthProvider({ api, store, children }:
   { api: AxiosInstance; store: TokenStore; children: React.ReactNode }) {
-  const [user, setUser] = useState<LoginResult['user'] | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  useEffect(() => { store.getAccess().then((t) => { setLoading(false); }); }, [store]);
+  useEffect(() => { store.getAccess().then(() => setLoading(false)); }, [store]);
   const signIn = async (id: string, pw: string) => {
     const res = await doLogin(api, id, pw);
     await store.setTokens(res.access, res.refresh);
-    setUser(res.user);
+    setSession({ role: res.role, username: res.username });
   };
-  const signOut = async () => { await store.clear(); setUser(null); };
-  return <Ctx.Provider value={{ user, role: user?.role ?? null, loading, signIn, signOut }}>{children}</Ctx.Provider>;
+  const signOut = async () => { await store.clear(); setSession(null); };
+  return <Ctx.Provider value={{ role: session?.role ?? null, username: session?.username ?? null, loading, signIn, signOut }}>{children}</Ctx.Provider>;
 }
 
 export function useAuth() {
