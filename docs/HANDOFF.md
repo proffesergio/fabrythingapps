@@ -5,6 +5,7 @@ up in a fresh Claude Code session on a different machine, and (3) produce
 installable Android APKs for the Customer, Rider and Restaurant apps.
 
 Written 2026-07-25, at the end of the Mobile Foundation milestone (SP0 + SP1).
+**Updated 2026-07-27 — §0, §1 and §2 below were stale and have been corrected.**
 
 ---
 
@@ -14,8 +15,8 @@ Two **separate** git repositories, side by side:
 
 | Repo | Path | Remote | Branch | State |
 | --- | --- | --- | --- | --- |
-| `fabrythingweb` | `~/Music/fabrything/fabrythingweb` | `github.com/proffesergio/fabrythingweb.git` | `feature/mobile-enablers` | SP0 done — **10 commits not yet merged into `main`, not deployed** |
-| `fabrythingapps` | `~/Music/fabrything/fabrythingapps` | **none yet** | `master` | SP1 done — all local, never pushed |
+| `fabrythingweb` | `~/Music/fabrything/fabrythingweb` | `github.com/proffesergio/fabrythingweb.git` | `main` | SP0 **merged and deployed to Render** |
+| `fabrythingapps` | `~/Music/fabrything/fabrythingapps` | `github.com/proffesergio/fabrythingapps.git` | `main` | SP1 done, **pushed**, in sync with origin |
 
 - **SP0** (backend enablers) = push device tokens, rider-privacy fields,
   `food/mobile/config/`, `store/auth/refresh/`. Food suite 340/340 green.
@@ -23,20 +24,20 @@ Two **separate** git repositories, side by side:
   three Expo apps that log in and load live data. Typecheck green,
   23/23 tests green.
 
-> ⚠️ **Read §2 before you build an APK.** The three endpoints the apps rely
-> on for push, the version gate and rider privacy only exist on the unmerged
-> `feature/mobile-enablers` branch. Until that branch is merged and deployed
-> to Render, those calls 404 in production. The apps degrade gracefully (they
-> are all best-effort with `.catch`), so nothing crashes — but push
-> notifications simply will not work.
+> ✅ **The SP0 endpoints are live.** Verified 2026-07-27:
+> `curl https://fabrythingweb.onrender.com/api/food/mobile/config/` returns
+> real JSON (`min_supported_version`, `feature_flags`, `support`), not a 404.
+> The `feature/mobile-enablers` branch no longer exists — it was merged.
+> Sections 1 and 2 below are kept for reference but their *actions* are done.
 
 ---
 
-## 1. Push `fabrythingapps` to a new GitHub repo
+## 1. Push `fabrythingapps` to a new GitHub repo — ✅ DONE
 
-The apps repo has commits but **no remote**. Nothing is ignored that matters,
-and there are no `.env` files or keystores in the tree, so it is safe to push
-as-is.
+> **Already done.** `origin` is `github.com/proffesergio/fabrythingapps.git`,
+> the branch is `main`, and the working tree is in sync with origin. Skip to
+> §3. The rest of this section is kept only in case the repo ever needs
+> re-creating.
 
 ### 1a. Create the empty repo
 
@@ -101,10 +102,14 @@ git commit -m "docs: track the SDD progress ledger"
 
 ---
 
-## 2. Ship the backend first (SP0) — do this before trusting an APK
+## 2. Ship the backend first (SP0) — ✅ DONE
+
+> **Already done.** SP0 is on `main` and deployed; the three endpoints below
+> respond in production. Nothing here is required before building an APK.
+> Kept as a record of what SP0 added and how to re-verify it.
 
 The mobile apps talk to `https://fabrythingweb.onrender.com/api/`. Three
-things they call are only on the unmerged branch:
+things they call arrived with SP0:
 
 - `food/mobile/config/` — version gate + support links
 - `food/devices/register/` + `food/devices/unregister/` — Expo push tokens
@@ -191,12 +196,17 @@ precisely because a cold jest cache blows the 5s default).
 - `docs/RELEASE.md` — the full EAS build/submit guide.
 - This file.
 
-**Does NOT travel:** the per-project memory in
-`~/.claude/projects/-home-hossain-Music-fabrything/memory/` is local to this
-machine. On the new machine Claude starts without it. That is fine — the
-in-repo docs above cover the same ground — but if you want it, copy that
-folder to the matching path on the new machine (the folder name is derived
-from the project path, so it will differ if you clone to `~/fabrything`).
+**Does NOT travel:** per-project Claude memory lives under
+`~/.claude/projects/<slugified-project-path>/memory/` and is local to the
+machine *and* to the path. It has already been lost once — the old notes
+referenced `-home-hossain-Music-fabrything`, and the account is now
+`billsbro`, so none of it carried over.
+
+**Treat the in-repo docs as the only durable memory.** `CLAUDE.md` in each
+repo, plus this file and `docs/RELEASE.md`, are versioned and travel with a
+clone; anything you want a future session to know belongs in them, not in
+machine-local memory. On this machine the current memory path is
+`~/.claude/projects/-home-billsbro-Music-fabrything/memory/`.
 
 ### 3e. Starting the next phase
 

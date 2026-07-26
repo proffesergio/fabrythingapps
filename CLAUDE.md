@@ -11,6 +11,36 @@ This repo has no backend code and no web code. If a task needs a new
 endpoint, field, or business rule, that change belongs in `fabrythingweb/`,
 not here.
 
+## Where things stand (2026-07-27) — read before planning work
+
+**Both repos are pushed and in sync.** This repo: `origin` =
+`github.com/proffesergio/fabrythingapps`, branch `main`, clean. The backend's
+mobile enablers (SP0) are **merged into `fabrythingweb` `main` and deployed** —
+`curl https://fabrythingweb.onrender.com/api/food/mobile/config/` returns real
+JSON, not a 404. Older notes in `docs/HANDOFF.md` that describe a pending
+`feature/mobile-enablers` branch or a missing git remote are historical.
+
+**What exists here is a foundation, not a product.** 42 TS files, 23 tests.
+`packages/core` is the substantial part (API client with refresh, auth, i18n,
+theme, push, version gate). Each app is **four files** — `_layout.tsx`,
+`login.tsx`, `index.tsx`, `index.test.tsx`:
+
+| App | What its one screen does today |
+| --- | --- |
+| Customer | logs in, lists live restaurants |
+| Rider | logs in, availability toggle + share-location toggle |
+| Restaurant | logs in, shows the vendor restaurant profile |
+
+**Not built yet** (the entire product surface, all of it already live on web):
+cart, checkout, order placement, order tracking, vendor order management, the
+rider offer/accept cycle, order history, loyalty, coupons. When picking up work,
+assume the feature does **not** exist in the apps and read the Django views in
+`../fabrythingweb/food/` for the shape before building it.
+
+**No app has ever been built for a store.** CI deliberately skips `eas build`
+because no Expo/Apple/Google developer account exists — see `docs/RELEASE.md`
+for the one-time setup that unblocks it.
+
 ## Monorepo layout
 
 npm workspaces (see root `package.json`, `workspaces: ["packages/*", "apps/*"]`):
@@ -125,4 +155,9 @@ refresh is `store/auth/refresh/`. Do not assume a `/me` call or a nested
 - Handoff (push to GitHub, resume on another machine, build test APKs,
   what's shipped vs. pending): `docs/HANDOFF.md`
 - Backend + web repo (the API contract lives here): sibling directory
-  `../fabrythingweb`
+  `../fabrythingweb`. **Read `../fabrythingweb/CLAUDE.md` before touching
+  anything API-shaped** — it is a maintained project map covering the food
+  domain (order state machine, dispatch offer cycle, settlement ledger,
+  pricing rules) and the conventions that bite, including the two different
+  list envelopes and the `{data, message}` vs `{errors, field_errors, message}`
+  response split.
