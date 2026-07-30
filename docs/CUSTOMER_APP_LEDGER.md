@@ -9,3 +9,4 @@ Branch: `feat/customer-app-store`.
 
 - 2026-07-30: plan + ledger created. Next: Task 1 (core store API surface).
 - 2026-07-30: Task 1 complete (commit 8aa1632) — packages/core/src/store/ (categories, products, product detail, config) with nested-envelope unwrapping, query builder, and StoreApiError; core tests 31/31, full typecheck clean. Next: Task 2 (store browsing screens).
+- 2026-07-30: Task 2 complete (commit 2e81877) — apps/customer/app/store/ (categories home, product-list with search/sort/pagination, product detail) as thin screens over Task 1's core client; Rx products flagged not hidden; en/bn copy added. Full suite green: core 31/31, customer 15/15, restaurant 2/2, rider 2/2; typecheck clean across all workspaces. Next: Task 3 (core: cart).
