@@ -67,7 +67,13 @@ product). Server cart endpoints exist (`store/cart/`, `store/cart/merge/`) —
 merge local into server on login.
 Tests: totals, variant identity, persistence round-trip, merge-on-login.
 
-### Task 4 — customer app: cart + checkout
+### Task 4 — customer app: cart + checkout (+ wire navigation)
+
+**Navigation gap left by Task 2:** the store screens live under `/store/*` but
+nothing links to them — the app still opens on the food-oriented `index.tsx`, so
+they are unreachable. Fix that as part of this task: give the app a real entry
+point that reaches both the store and the existing food surface.
+
 Cart screen and a COD checkout flow (address, contact, place order via
 `store/orders/`). Surface `field_errors` against the right input. Shipping is
 resolved server-side (`max(flat rate, per-product fees)`, free-shipping promos)
