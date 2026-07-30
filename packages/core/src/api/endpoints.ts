@@ -9,4 +9,11 @@ export const endpoints = {
   riderPrivacy: 'food/rider/privacy/',
   mobileConfig: 'food/mobile/config/',
   notifications: 'food/notifications/',
+  storeCategories: 'store/categories/',
+  storeProducts: 'store/products/',
+  storeProductDetail: (slug: string) => `store/products/${slug}/`,
+  storeConfig: 'store/config/',
+  storeCart: 'store/cart/',
+  storeCartMerge: 'store/cart/merge/',
+  storeOrders: 'store/orders/',
 } as const;

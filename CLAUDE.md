@@ -161,3 +161,23 @@ refresh is `store/auth/refresh/`. Do not assume a `/me` call or a nested
   pricing rules) and the conventions that bite, including the two different
   list envelopes and the `{data, message}` vs `{errors, field_errors, message}`
   response split.
+
+## Resumable work protocol (session limits)
+
+Session/usage limits terminate work without warning — there is no way to detect
+one approaching. So work is structured so an interruption is cheap and a fresh
+session resumes with **no conversation history**:
+
+1. **`docs/CUSTOMER_APP_PLAN.md` + `docs/CUSTOMER_APP_LEDGER.md` are the
+   handoff.** The plan holds the tasks and every API fact already verified; the
+   ledger records what is actually done. On resume: read both, find the first
+   task with no `complete` line, start there. Trust the ledger and `git log`
+   over recollection.
+2. **Commit after every task**, never at the end of a batch. Six agents on this
+   project have been killed mid-task; each lost only uncommitted work.
+3. **Append to the ledger in the same breath as committing** — a commit the
+   ledger does not mention is invisible to the next session.
+4. Record verified API shapes and dead ends in the plan, so a resumed session
+   never re-probes what was already settled.
+5. Test the workspace you touched while iterating; full typecheck + suite once
+   before pushing.
