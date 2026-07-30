@@ -13,4 +13,7 @@ export const endpoints = {
   storeProducts: 'store/products/',
   storeProductDetail: (slug: string) => `store/products/${slug}/`,
   storeConfig: 'store/config/',
+  storeCart: 'store/cart/',
+  storeCartMerge: 'store/cart/merge/',
+  storeOrders: 'store/orders/',
 } as const;
