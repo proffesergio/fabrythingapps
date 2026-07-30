@@ -3,10 +3,10 @@ import Home from './index';
 
 const mockUseAuth = jest.fn<{ role: string | null; loading: boolean }, []>(() => ({ role: 'Customer', loading: false }));
 
-jest.mock('../src/providers', () => ({
+jest.mock('../../src/providers', () => ({
   api: { get: jest.fn().mockResolvedValue({ data: { data: [{ id: 1, name: 'Rahim Hotel', slug: 'rahim' }] } }) },
 }));
-jest.mock('../src/push', () => ({ registerPush: jest.fn() }));
+jest.mock('../../src/push', () => ({ registerPush: jest.fn() }));
 jest.mock('expo-constants', () => ({ __esModule: true, default: { expoConfig: { version: '1.0.0' } } }));
 jest.mock('expo-router', () => ({
   Redirect: ({ href }: { href: string }) => {

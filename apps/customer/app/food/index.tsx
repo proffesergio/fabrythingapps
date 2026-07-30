@@ -3,8 +3,8 @@ import { View, Text, FlatList, ActivityIndicator } from 'react-native';
 import { Redirect } from 'expo-router';
 import Constants from 'expo-constants';
 import { useAuth, endpoints, fetchMobileConfig, isVersionSupported } from '@fabrything/core';
-import { api } from '../src/providers';
-import { registerPush } from '../src/push';
+import { api } from '../../src/providers';
+import { registerPush } from '../../src/push';
 
 const APP = 'customer' as const;
 

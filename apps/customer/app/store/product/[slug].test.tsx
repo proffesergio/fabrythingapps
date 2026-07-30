@@ -1,17 +1,25 @@
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
 import ProductDetail from './[slug]';
 
 const mockFetchProductDetail = jest.fn();
+const mockAddItem = jest.fn();
+const mockPush = jest.fn();
 
 jest.mock('../../../src/providers', () => ({ api: {} }));
-jest.mock('expo-router', () => ({ useLocalSearchParams: () => ({ slug: 'cotton-panjabi' }) }));
+jest.mock('expo-router', () => ({
+  useLocalSearchParams: () => ({ slug: 'cotton-panjabi' }),
+  useRouter: () => ({ push: mockPush }),
+}));
 jest.mock('@fabrything/core', () => ({
   t: (k: string) => k,
   fetchProductDetail: (...args: unknown[]) => mockFetchProductDetail(...args),
+  useCart: () => ({ addItem: mockAddItem }),
 }));
 
 afterEach(() => {
   mockFetchProductDetail.mockReset();
+  mockAddItem.mockReset();
+  mockPush.mockReset();
 });
 
 const sampleDetail = {
@@ -93,4 +101,36 @@ test('shows an error state with a retry action', async () => {
   await render(<ProductDetail />);
   await waitFor(() => expect(screen.getByText('Network down')).toBeTruthy());
   expect(screen.getByText('retry')).toBeTruthy();
+});
+
+test('adding to cart passes the selected variant identity, not the product', async () => {
+  mockFetchProductDetail.mockResolvedValue(sampleDetail);
+  await render(<ProductDetail />);
+  await waitFor(() => expect(screen.getByText('Cotton Panjabi')).toBeTruthy());
+
+  fireEvent.press(screen.getByText('addToCart'));
+
+  expect(mockAddItem).toHaveBeenCalledWith(
+    expect.objectContaining({
+      variantId: 11,
+      productId: 1,
+      sku: 'CP-M',
+      size: 'M',
+      unitPrice: '999.00',
+    }),
+    1,
+  );
+  await waitFor(() => expect(screen.getByText('addedToCart')).toBeTruthy());
+});
+
+test('view cart navigates to /store/cart after adding', async () => {
+  mockFetchProductDetail.mockResolvedValue(sampleDetail);
+  await render(<ProductDetail />);
+  await waitFor(() => expect(screen.getByText('Cotton Panjabi')).toBeTruthy());
+
+  fireEvent.press(screen.getByText('addToCart'));
+  await waitFor(() => expect(screen.getByText('viewCart')).toBeTruthy());
+  fireEvent.press(screen.getByText('viewCart'));
+
+  expect(mockPush).toHaveBeenCalledWith('/store/cart');
 });
