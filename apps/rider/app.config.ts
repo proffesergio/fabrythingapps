@@ -27,9 +27,7 @@ const config: ExpoConfig = {
   owner: 'newell-team',
   extra: {
     eas: {
-      // Run `npx eas-cli@latest init` inside apps/rider to create this app's
-      // own EAS project and paste the id it prints here.
-      projectId: process.env.EAS_PROJECT_ID_RIDER,
+      projectId: '6c4973aa-6b9c-4ba4-a84b-2eb3acde0270',
     },
   },
   plugins: [

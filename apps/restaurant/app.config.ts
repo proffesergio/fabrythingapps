@@ -27,9 +27,7 @@ const config: ExpoConfig = {
   owner: 'newell-team',
   extra: {
     eas: {
-      // Run `npx eas-cli@latest init` inside apps/restaurant to create this app's
-      // own EAS project and paste the id it prints here.
-      projectId: process.env.EAS_PROJECT_ID_RESTAURANT,
+      projectId: '3d2bf863-0715-4144-88f9-ee2dcd9edfc2',
     },
   },
   plugins: [
