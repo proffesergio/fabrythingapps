@@ -56,11 +56,14 @@ jobs:
       - uses: actions/checkout@v4
         if: env.EXPO_TOKEN != ''
 
+      # No `cache: npm` here on purpose. GitHub's Actions cache service has
+      # been answering 400 ("Failed to save/restore"), and those messages bury
+      # the real build error in the log. `npm ci` from scratch costs ~30s and
+      # is worth the readable failure output.
       - uses: actions/setup-node@v4
         if: env.EXPO_TOKEN != ''
         with:
           node-version: 20
-          cache: npm
 
       - run: npm ci
         if: env.EXPO_TOKEN != ''
