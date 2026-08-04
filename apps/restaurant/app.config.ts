@@ -19,6 +19,19 @@ const config: ExpoConfig = {
       backgroundColor: '#F4A62A',
     },
   },
+  // Each app in this monorepo is a SEPARATE EAS project — separate bundle
+  // id, separate store listing, separate build. A single root-level
+  // app.json cannot serve all three; `eas build` resolves the config from
+  // the app directory it runs in (see .github/workflows/mobile-ci.yml,
+  // which sets working-directory: apps/<app>).
+  owner: 'newell-team',
+  extra: {
+    eas: {
+      // Run `npx eas-cli@latest init` inside apps/restaurant to create this app's
+      // own EAS project and paste the id it prints here.
+      projectId: process.env.EAS_PROJECT_ID_RESTAURANT,
+    },
+  },
   plugins: [
     'expo-router',
     'expo-secure-store',
