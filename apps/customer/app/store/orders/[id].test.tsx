@@ -11,10 +11,12 @@ const CANCELABLE_ORDER_STATUSES = ['PENDING_VERIFICATION', 'CONFIRMED', 'OUT_FOR
 class FakeStoreApiError extends Error {
   errors: string[];
   fieldErrors: Record<string, string[]>;
-  constructor(message: string, errors: string[] = [], fieldErrors: Record<string, string[]> = {}) {
+  status?: number;
+  constructor(message: string, errors: string[] = [], fieldErrors: Record<string, string[]> = {}, status?: number) {
     super(message);
     this.errors = errors;
     this.fieldErrors = fieldErrors;
+    this.status = status;
   }
 }
 
@@ -27,6 +29,7 @@ jest.mock('expo-router', () => ({
   },
 }));
 jest.mock('@fabrything/core', () => ({
+  ...jest.requireActual('@fabrything/core'),
   t: (k: string) => k,
   useAuth: () => mockAuthState,
   fetchOrderDetail: (...args: unknown[]) => mockFetchOrderDetail(...args),
@@ -125,7 +128,7 @@ test('cancel succeeds and reloads the order', async () => {
 test('a rejected cancel on a non-cancellable order shows a clear message', async () => {
   mockAuthState = { role: 'Customer', loading: false };
   mockFetchOrderDetail.mockResolvedValue(baseOrder);
-  mockCancelOrder.mockRejectedValue(new FakeStoreApiError('Not allowed', ['This order can no longer be canceled']));
+  mockCancelOrder.mockRejectedValue(new FakeStoreApiError('Not allowed', ['This order can no longer be canceled'], {}, 400));
 
   await renderFlushed(<OrderDetailScreen />);
   await waitFor(() => expect(screen.getByText('cancelOrder')).toBeTruthy());
@@ -135,6 +138,24 @@ test('a rejected cancel on a non-cancellable order shows a clear message', async
   await waitFor(() => expect(screen.getByText('This order can no longer be canceled')).toBeTruthy());
   // The order is not silently marked canceled on a failed attempt.
   expect(screen.getByText('Confirmed')).toBeTruthy();
+});
+
+test('shows an error state with a retry action when the initial load fails', async () => {
+  mockAuthState = { role: 'Customer', loading: false };
+  mockFetchOrderDetail.mockRejectedValueOnce(new FakeStoreApiError('Server error', ['Server error'], {}, 500));
+  await renderFlushed(<OrderDetailScreen />);
+  await waitFor(() => expect(screen.getByText('Server error')).toBeTruthy());
+
+  mockFetchOrderDetail.mockResolvedValueOnce(baseOrder);
+  await pressFlushed(screen.getByText('retry'));
+  await waitFor(() => expect(screen.getByText('ORD-0007')).toBeTruthy());
+});
+
+test('shows an offline hint when the initial load never reaches the server', async () => {
+  mockAuthState = { role: 'Customer', loading: false };
+  mockFetchOrderDetail.mockRejectedValue(new FakeStoreApiError('Network Error', []));
+  await renderFlushed(<OrderDetailScreen />);
+  await waitFor(() => expect(screen.getByText('offline')).toBeTruthy());
 });
 
 test('redirects to login when signed out', async () => {

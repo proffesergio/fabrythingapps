@@ -12,7 +12,7 @@ export function OrdersHeaderButton() {
       accessibilityRole="button"
       accessibilityLabel={t('myOrders', 'en')}
       onPress={() => router.push('/store/orders')}
-      style={{ paddingHorizontal: 12, paddingVertical: 6 }}
+      style={{ paddingHorizontal: 12, minHeight: 44, justifyContent: 'center' }}
     >
       <Text style={{ fontWeight: '600' }}>{t('myOrders', 'en')}</Text>
     </TouchableOpacity>

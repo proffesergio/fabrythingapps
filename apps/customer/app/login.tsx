@@ -29,7 +29,7 @@ export default function Login() {
       }
       router.replace('/');
     } catch {
-      setErr('Login failed');
+      setErr(t('loginFailed', 'en'));
     }
   };
   return (

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, Button } from 'react-native';
+import { View, Text, ScrollView } from 'react-native';
 import { Redirect, useLocalSearchParams } from 'expo-router';
 import {
   cancelOrder,
   fetchOrderDetail,
+  isNetworkError,
   t,
   useAuth,
   CANCELABLE_ORDER_STATUSES,
@@ -11,9 +12,15 @@ import {
   StoreApiError,
 } from '@fabrything/core';
 import { api } from '../../../src/providers';
+import { ErrorView, LoadingView, PrimaryButton } from '../../../src/components/StateViews';
 
 function firstParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function messageFor(error: unknown): string {
+  const err = error as StoreApiError;
+  return isNetworkError(err) ? t('offline', 'en') : err.errors?.[0] || err.message || t('somethingWrong', 'en');
 }
 
 // Order detail + status timeline + cancel. `order.status_logs` is already
@@ -29,13 +36,16 @@ export default function OrderDetailScreen() {
   const [canceling, setCanceling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     if (!id) return;
     setError(null);
     setOrder(null);
-    fetchOrderDetail(api, id)
-      .then(setOrder)
-      .catch((e: { message?: string }) => setError(e?.message || t('somethingWrong', 'en')));
+    try {
+      const detail = await fetchOrderDetail(api, id);
+      setOrder(detail);
+    } catch (e) {
+      setError(messageFor(e));
+    }
   }, [id]);
 
   useEffect(() => {
@@ -48,28 +58,26 @@ export default function OrderDetailScreen() {
     setCancelError(null);
     try {
       await cancelOrder(api, id);
-      load();
+      // Awaited (not fire-and-forget) so `canceling` only clears once the
+      // reload has actually landed -- otherwise the button re-enables while
+      // the screen is still showing the pre-cancel status.
+      await load();
     } catch (e) {
       const err = e as StoreApiError;
-      setCancelError(err.errors?.[0] || err.message || t('cancelOrderFailed', 'en'));
+      setCancelError(isNetworkError(err) ? t('offline', 'en') : err.errors?.[0] || err.message || t('cancelOrderFailed', 'en'));
     } finally {
       setCanceling(false);
     }
   };
 
-  if (authLoading) return <ActivityIndicator style={{ marginTop: 40 }} />;
+  if (authLoading) return <LoadingView />;
   if (!role) return <Redirect href="/login" />;
 
   if (error) {
-    return (
-      <View style={{ padding: 24, gap: 12 }}>
-        <Text>{error}</Text>
-        <Button title={t('retry', 'en')} onPress={load} />
-      </View>
-    );
+    return <ErrorView message={error} onRetry={load} />;
   }
 
-  if (order === null) return <ActivityIndicator style={{ marginTop: 40 }} />;
+  if (order === null) return <LoadingView />;
 
   const cancelable = CANCELABLE_ORDER_STATUSES.includes(order.status);
 
@@ -88,7 +96,7 @@ export default function OrderDetailScreen() {
         {order.items.map((item) => (
           <View key={item.id} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Text>
-              {item.quantity} x {item.product_name} {item.size ? `(${item.size})` : ''}
+              {item.quantity} × {item.product_name} {item.size ? `(${item.size})` : ''}
             </Text>
             <Text>{item.line_total}</Text>
           </View>
@@ -132,10 +140,18 @@ export default function OrderDetailScreen() {
         <Text style={{ color: '#8C7B6E' }}>{order.canceled_reason}</Text>
       ) : null}
 
-      {cancelError ? <Text style={{ color: '#E8452B' }}>{cancelError}</Text> : null}
+      {cancelError ? (
+        <Text style={{ color: '#E8452B' }} accessibilityRole="alert">
+          {cancelError}
+        </Text>
+      ) : null}
 
       {cancelable ? (
-        <Button title={canceling ? t('cancelingOrder', 'en') : t('cancelOrder', 'en')} disabled={canceling} onPress={onCancel} />
+        <PrimaryButton
+          title={canceling ? t('cancelingOrder', 'en') : t('cancelOrder', 'en')}
+          disabled={canceling}
+          onPress={onCancel}
+        />
       ) : (
         <Text style={{ color: '#8C7B6E' }}>{t('orderNotCancelable', 'en')}</Text>
       )}

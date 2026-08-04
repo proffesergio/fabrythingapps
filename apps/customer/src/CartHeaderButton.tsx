@@ -14,7 +14,7 @@ export function CartHeaderButton() {
       accessibilityRole="button"
       accessibilityLabel={t('cart', 'en')}
       onPress={() => router.push('/store/cart')}
-      style={{ paddingHorizontal: 12, paddingVertical: 6 }}
+      style={{ paddingHorizontal: 12, minHeight: 44, justifyContent: 'center' }}
     >
       <Text style={{ fontWeight: '600' }}>
         {t('cart', 'en')}

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, FlatList, ActivityIndicator, TextInput, TouchableOpacity, Button, Image } from 'react-native';
+import { View, Text, FlatList, TextInput, TouchableOpacity, Image, RefreshControl, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { fetchProducts, t, ProductOrdering, StoreProduct } from '@fabrything/core';
+import { fetchProducts, isNetworkError, t, ProductOrdering, StoreProduct, StoreApiError } from '@fabrything/core';
 import { api } from '../../src/providers';
+import { EmptyView, ErrorView, LoadingView, MIN_TAP_TARGET } from '../../src/components/StateViews';
 
 const PAGE_SIZE = 20;
 
@@ -15,6 +16,16 @@ const SORT_OPTIONS: { value: ProductOrdering; labelKey: 'sortNewest' | 'sortPric
 
 function firstParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+// `fetchProducts` always rejects with a `StoreApiError` (see
+// `toStoreApiError`), so a real network failure (offline/DNS/timeout, no
+// HTTP response at all) is distinguished from the server answering with an
+// error -- a raw axios message like "Network Error" means nothing to a
+// customer, so it's replaced with a clear "you appear to be offline".
+function messageFor(error: unknown): string {
+  const err = error as StoreApiError;
+  return isNetworkError(err) ? t('offline', 'en') : err.errors?.[0] || err.message || t('somethingWrong', 'en');
 }
 
 // Product-list screen: search + sort + pagination, optionally scoped to a
@@ -32,39 +43,43 @@ export default function ProductList() {
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(
-    (targetPage: number, append: boolean) => {
-      setLoading(true);
+    async (targetPage: number, mode: 'initial' | 'refresh' | 'append' = 'initial') => {
+      if (mode === 'refresh') setRefreshing(true);
+      else if (mode === 'append') setLoadingMore(true);
+      else setLoading(true);
       setError(null);
-      fetchProducts(api, { category, search, ordering, page: targetPage, pageSize: PAGE_SIZE })
-        .then((res) => {
-          setProducts((prev) => (append ? [...prev, ...res.items] : res.items));
-          setTotalPages(res.totalPages);
-          setPage(res.currentPage);
-          setLoading(false);
-        })
-        .catch((e: { message?: string }) => {
-          setError(e?.message || t('somethingWrong', 'en'));
-          setLoading(false);
-        });
+      try {
+        const res = await fetchProducts(api, { category, search, ordering, page: targetPage, pageSize: PAGE_SIZE });
+        setProducts((prev) => (mode === 'append' ? [...prev, ...res.items] : res.items));
+        setTotalPages(res.totalPages);
+        setPage(res.currentPage);
+      } catch (e) {
+        setError(messageFor(e));
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+        setLoadingMore(false);
+      }
     },
     [category, search, ordering],
   );
 
   useEffect(() => {
-    load(1, false);
+    load(1, 'initial');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category, search, ordering]);
 
-  if (error) {
-    return (
-      <View style={{ padding: 24, gap: 12 }}>
-        <Text>{error}</Text>
-        <Button title={t('retry', 'en')} onPress={() => load(1, false)} />
-      </View>
-    );
+  if (loading && products.length === 0 && !error) {
+    return <LoadingView />;
+  }
+
+  if (error && products.length === 0) {
+    return <ErrorView message={error} onRetry={() => load(1, 'initial')} />;
   }
 
   return (
@@ -75,17 +90,21 @@ export default function ProductList() {
           onChangeText={setSearchInput}
           onSubmitEditing={() => setSearch(searchInput)}
           placeholder={t('searchProducts', 'en')}
-          style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 10 }}
+          accessibilityLabel={t('searchProducts', 'en')}
+          style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 10, minHeight: 44 }}
         />
         <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
           {SORT_OPTIONS.map((opt) => (
             <TouchableOpacity
               key={opt.value}
               accessibilityRole="button"
+              accessibilityLabel={t(opt.labelKey, 'en')}
+              accessibilityState={{ selected: ordering === opt.value }}
               onPress={() => setOrdering(opt.value)}
               style={{
-                paddingHorizontal: 10,
-                paddingVertical: 6,
+                paddingHorizontal: 12,
+                minHeight: 40,
+                justifyContent: 'center',
                 borderRadius: 8,
                 borderWidth: 1,
                 borderColor: ordering === opt.value ? '#E8452B' : '#eee',
@@ -97,47 +116,61 @@ export default function ProductList() {
         </View>
       </View>
 
-      {loading && products.length === 0 ? (
-        <ActivityIndicator style={{ marginTop: 40 }} />
-      ) : (
-        <FlatList
-          data={products}
-          keyExtractor={(p) => String(p.id)}
-          renderItem={({ item }) => (
+      <FlatList
+        testID="product-list"
+        data={products}
+        keyExtractor={(p) => String(p.id)}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => load(1, 'refresh')} accessibilityLabel={t('pullToRefresh', 'en')} />
+        }
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={item.name}
+            style={{ flexDirection: 'row', padding: 12, borderBottomWidth: 1, borderColor: '#eee', gap: 12, minHeight: MIN_TAP_TARGET }}
+            onPress={() => router.push({ pathname: '/store/product/[slug]', params: { slug: item.slug } })}
+          >
+            {item.image && item.image[0] ? (
+              <Image source={{ uri: item.image[0] }} style={{ width: 64, height: 64, borderRadius: 8 }} />
+            ) : (
+              <View style={{ width: 64, height: 64, borderRadius: 8, backgroundColor: '#eee' }} />
+            )}
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={{ fontSize: 16 }}>{item.name}</Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <Text style={{ fontWeight: '600' }}>{item.discount_price ?? item.initial_selling_price}</Text>
+                {item.discount_price ? (
+                  <Text style={{ textDecorationLine: 'line-through', color: '#8C7B6E' }}>
+                    {item.initial_selling_price}
+                  </Text>
+                ) : null}
+                {item.requires_prescription ? (
+                  <Text accessibilityLabel={t('prescriptionRequired', 'en')}>{t('rxBadge', 'en')}</Text>
+                ) : null}
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
+        ListHeaderComponent={categoryName ? <Text style={{ padding: 12, fontSize: 18 }}>{categoryName}</Text> : null}
+        ListEmptyComponent={<EmptyView message={t('noProducts', 'en')} />}
+        ListFooterComponent={
+          page < totalPages ? (
             <TouchableOpacity
               accessibilityRole="button"
-              accessibilityLabel={item.name}
-              style={{ flexDirection: 'row', padding: 12, borderBottomWidth: 1, borderColor: '#eee', gap: 12 }}
-              onPress={() => router.push({ pathname: '/store/product/[slug]', params: { slug: item.slug } })}
+              accessibilityLabel={t('loadMore', 'en')}
+              disabled={loadingMore}
+              onPress={() => load(page + 1, 'append')}
+              style={{ minHeight: MIN_TAP_TARGET, alignItems: 'center', justifyContent: 'center', padding: 12 }}
             >
-              {item.image && item.image[0] ? (
-                <Image source={{ uri: item.image[0] }} style={{ width: 64, height: 64, borderRadius: 8 }} />
+              {loadingMore ? (
+                <ActivityIndicator color="#E8452B" />
               ) : (
-                <View style={{ width: 64, height: 64, borderRadius: 8, backgroundColor: '#eee' }} />
+                <Text style={{ color: '#E8452B', fontWeight: '600' }}>{t('loadMore', 'en')}</Text>
               )}
-              <View style={{ flex: 1, gap: 4 }}>
-                <Text style={{ fontSize: 16 }}>{item.name}</Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <Text style={{ fontWeight: '600' }}>{item.discount_price ?? item.initial_selling_price}</Text>
-                  {item.discount_price ? (
-                    <Text style={{ textDecorationLine: 'line-through', color: '#8C7B6E' }}>
-                      {item.initial_selling_price}
-                    </Text>
-                  ) : null}
-                  {item.requires_prescription ? <Text accessibilityLabel="Rx">Rx</Text> : null}
-                </View>
-              </View>
             </TouchableOpacity>
-          )}
-          ListHeaderComponent={categoryName ? <Text style={{ padding: 12, fontSize: 18 }}>{categoryName}</Text> : null}
-          ListEmptyComponent={<Text style={{ padding: 24 }}>{t('noProducts', 'en')}</Text>}
-          ListFooterComponent={
-            page < totalPages ? (
-              <Button title={t('loadMore', 'en')} onPress={() => load(page + 1, true)} />
-            ) : null
-          }
-        />
-      )}
+          ) : null
+        }
+      />
     </View>
   );
 }

@@ -1,6 +1,7 @@
-import { View, Text, FlatList, TouchableOpacity, Button, Image } from 'react-native';
+import { View, Text, FlatList, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useCart, t } from '@fabrything/core';
+import { EmptyView, LoadingView, PrimaryButton, SecondaryButton, StepperButton } from '../../src/components/StateViews';
 
 // Cart screen: variant-line items, quantity edit, remove, subtotal, empty
 // state. Deliberately does NOT show a shipping figure here -- the backend has
@@ -13,13 +14,20 @@ import { useCart, t } from '@fabrything/core';
 // checkout screen's confirmation, straight from the place-order response.
 export default function Cart() {
   const router = useRouter();
-  const { lines, totals, updateQuantity, removeItem } = useCart();
+  const { lines, totals, updateQuantity, removeItem, loading } = useCart();
+
+  // The cart is persisted locally (expo-secure-store) and read back
+  // asynchronously on mount; without this check an empty cart flashed as
+  // "Your cart is empty" for a beat before the real, non-empty cart loaded.
+  if (loading) {
+    return <LoadingView />;
+  }
 
   if (lines.length === 0) {
     return (
-      <View style={{ flex: 1, padding: 24, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-        <Text>{t('emptyCart', 'en')}</Text>
-        <Button title={t('continueShopping', 'en')} onPress={() => router.push('/store')} />
+      <View style={{ flex: 1, padding: 24, alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+        <EmptyView message={t('emptyCart', 'en')} />
+        <SecondaryButton title={t('continueShopping', 'en')} onPress={() => router.push('/store')} />
       </View>
     );
   }
@@ -43,26 +51,22 @@ export default function Cart() {
               </Text>
               <Text style={{ fontWeight: '600' }}>{item.unitPrice}</Text>
               <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-                <TouchableOpacity
-                  accessibilityRole="button"
+                <StepperButton
+                  label="-"
                   accessibilityLabel={`decrease-${item.variantId}`}
                   onPress={() => updateQuantity(item.variantId, item.quantity - 1)}
-                  style={{ borderWidth: 1, borderColor: '#eee', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 }}
-                >
-                  <Text>-</Text>
-                </TouchableOpacity>
+                />
                 <Text accessibilityLabel={`quantity-${item.variantId}`}>{item.quantity}</Text>
-                <TouchableOpacity
-                  accessibilityRole="button"
+                <StepperButton
+                  label="+"
                   accessibilityLabel={`increase-${item.variantId}`}
                   onPress={() => updateQuantity(item.variantId, item.quantity + 1)}
-                  style={{ borderWidth: 1, borderColor: '#eee', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 }}
-                >
-                  <Text>+</Text>
-                </TouchableOpacity>
-                <TouchableOpacity accessibilityRole="button" onPress={() => removeItem(item.variantId)}>
-                  <Text style={{ color: '#E8452B' }}>{t('remove', 'en')}</Text>
-                </TouchableOpacity>
+                />
+                <SecondaryButton
+                  title={t('remove', 'en')}
+                  accessibilityLabel={`${t('remove', 'en')}-${item.variantId}`}
+                  onPress={() => removeItem(item.variantId)}
+                />
               </View>
             </View>
           </View>
@@ -75,7 +79,7 @@ export default function Cart() {
           <Text>{totals.subtotal.toFixed(2)}</Text>
         </View>
         <Text style={{ color: '#8C7B6E' }}>{t('shippingCalculatedAtCheckout', 'en')}</Text>
-        <Button title={t('proceedToCheckout', 'en')} onPress={() => router.push('/store/checkout')} />
+        <PrimaryButton title={t('proceedToCheckout', 'en')} onPress={() => router.push('/store/checkout')} />
       </View>
     </View>
   );
