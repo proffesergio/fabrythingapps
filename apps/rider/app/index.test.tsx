@@ -12,6 +12,7 @@ jest.mock('../src/providers', () => ({
 jest.mock('../src/push', () => ({ registerPush: jest.fn() }));
 jest.mock('expo-constants', () => ({ __esModule: true, default: { expoConfig: { version: '1.0.0' } } }));
 jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: jest.fn() }),
   Redirect: ({ href }: { href: string }) => {
     const { Text } = require('react-native');
     return <Text testID="redirect">{href}</Text>;
@@ -32,7 +33,8 @@ afterEach(() => {
 test('shows rider name and a share-location control', async () => {
   await render(<Home />);
   await waitFor(() => expect(screen.getByText('R1')).toBeTruthy());
-  expect(screen.getByText(/share location/i)).toBeTruthy();
+  // `t` is mocked to the identity function here, so the i18n key is what renders.
+  expect(screen.getByLabelText('shareLocation')).toBeTruthy();
 });
 
 test('redirects to login when unauthenticated', async () => {

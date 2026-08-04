@@ -19,3 +19,6 @@ export * from './store/orders';
 export * from './cart';
 export * from './orders';
 export * from './net/slowRequestHint';
+export * from './rider';
+export * from './vendor';
+export * from './food/status';
