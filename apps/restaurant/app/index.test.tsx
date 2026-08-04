@@ -9,6 +9,7 @@ jest.mock('../src/providers', () => ({
 jest.mock('../src/push', () => ({ registerPush: jest.fn() }));
 jest.mock('expo-constants', () => ({ __esModule: true, default: { expoConfig: { version: '1.0.0' } } }));
 jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: jest.fn() }),
   Redirect: ({ href }: { href: string }) => {
     const { Text } = require('react-native');
     return <Text testID="redirect">{href}</Text>;

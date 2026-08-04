@@ -45,7 +45,7 @@ export const strings = {
         loginFailed: 'Login failed. Check your phone number and password and try again.',
         pullToRefresh: 'Pull to refresh',
         // Rider app
-        online: 'Online', offline: 'Offline', availableForDeliveries: 'Available for deliveries',
+        riderOnline: 'Online', riderOffline: 'Offline', availableForDeliveries: 'Available for deliveries',
         shareLocation: 'Share my location', newDeliveryOffer: 'New delivery offer',
         pickupFrom: 'Pick up from', dropAt: 'Deliver to', youEarn: 'You earn',
         distance: 'Distance', accept: 'Accept', decline: 'Decline',
@@ -112,7 +112,7 @@ export const strings = {
         loginFailed: 'লগ ইন ব্যর্থ হয়েছে। আপনার ফোন নম্বর ও পাসওয়ার্ড যাচাই করে আবার চেষ্টা করুন।',
         pullToRefresh: 'রিফ্রেশ করতে টানুন',
         // Rider app
-        online: 'অনলাইন', offline: 'অফলাইন', availableForDeliveries: 'ডেলিভারির জন্য উপলব্ধ',
+        riderOnline: 'অনলাইন', riderOffline: 'অফলাইন', availableForDeliveries: 'ডেলিভারির জন্য উপলব্ধ',
         shareLocation: 'আমার লোকেশন শেয়ার করুন', newDeliveryOffer: 'নতুন ডেলিভারির অফার',
         pickupFrom: 'পিকআপ', dropAt: 'পৌঁছে দিন', youEarn: 'আপনি পাবেন',
         distance: 'দূরত্ব', accept: 'গ্রহণ করুন', decline: 'ফিরিয়ে দিন',
