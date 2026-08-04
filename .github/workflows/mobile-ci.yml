@@ -26,35 +26,47 @@ jobs:
   # (see docs/RELEASE.md #2-3 — `android.buildType: apk` on that profile is
   # what makes it directly installable rather than a Play-Store-only AAB).
   #
-  # Gated on the `EXPO_TOKEN` repository secret existing, not on a branch
-  # filter alone: no Expo/EAS account existed when this workflow was written,
-  # so without the secret this job would fail outright rather than usefully
-  # no-op. Today the secret is unset, so `if:` evaluates false, every matrix
-  # job is skipped, and the workflow stays green — nothing here needs to
-  # change once the owner adds `EXPO_TOKEN` (Account settings -> Access
-  # tokens on expo.dev) as a repo secret; the job simply starts running.
+  # Gated on the `EXPO_TOKEN` repository secret existing, so the workflow
+  # stays green before an Expo account exists instead of failing outright.
+  #
+  # The check lives on the STEPS, not on the job's `if:`. GitHub does not
+  # expose the `secrets` context to a job-level `if:` — putting it there is
+  # an "Unrecognized named-value: 'secrets'" workflow parse error, which
+  # fails every push including the tests. `env:` set at job level from a
+  # secret IS readable by step-level `if:`, so that is the supported way to
+  # ask "is this secret configured?".
   # Scoped to pushes on main/master (not every PR) since each run consumes
   # real EAS build minutes once the account exists.
   build:
     name: EAS build (preview, Android, ${{ matrix.app }})
     needs: test
-    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && secrets.EXPO_TOKEN != '' }}
+    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}
     runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
         app: [customer, rider, restaurant]
     steps:
+      - name: Skip notice when EXPO_TOKEN is not configured
+        if: env.EXPO_TOKEN == ''
+        run: echo "EXPO_TOKEN is not set — skipping EAS builds. Add it under Settings > Secrets and variables > Actions."
+
       - uses: actions/checkout@v4
+        if: env.EXPO_TOKEN != ''
 
       - uses: actions/setup-node@v4
+        if: env.EXPO_TOKEN != ''
         with:
           node-version: 20
           cache: npm
 
       - run: npm ci
+        if: env.EXPO_TOKEN != ''
 
       - uses: expo/expo-github-action@v8
+        if: env.EXPO_TOKEN != ''
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
@@ -67,6 +79,7 @@ jobs:
       # (docs/RELEASE.md #6) that needs Apple/Google listings this workflow
       # has no business gating.
       - name: eas build --profile preview --platform android
+        if: env.EXPO_TOKEN != ''
         working-directory: apps/${{ matrix.app }}
         run: eas build --profile preview --platform android --non-interactive --no-wait
         env:
