@@ -21,3 +21,53 @@ jobs:
       - run: npm run typecheck
 
       - run: npm test --workspaces --if-present -- --runInBand
+
+  # Builds an installable Android APK per app via the `preview` EAS profile
+  # (see docs/RELEASE.md #2-3 — `android.buildType: apk` on that profile is
+  # what makes it directly installable rather than a Play-Store-only AAB).
+  #
+  # Gated on the `EXPO_TOKEN` repository secret existing, not on a branch
+  # filter alone: no Expo/EAS account existed when this workflow was written,
+  # so without the secret this job would fail outright rather than usefully
+  # no-op. Today the secret is unset, so `if:` evaluates false, every matrix
+  # job is skipped, and the workflow stays green — nothing here needs to
+  # change once the owner adds `EXPO_TOKEN` (Account settings -> Access
+  # tokens on expo.dev) as a repo secret; the job simply starts running.
+  # Scoped to pushes on main/master (not every PR) since each run consumes
+  # real EAS build minutes once the account exists.
+  build:
+    name: EAS build (preview, Android, ${{ matrix.app }})
+    needs: test
+    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && secrets.EXPO_TOKEN != '' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [customer, rider, restaurant]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # `--no-wait` triggers the remote EAS build and returns immediately
+      # instead of polling for completion in this job — EAS builds can take
+      # many minutes and there's no reason to hold a CI runner for that. The
+      # build's own status/artifact is tracked on expo.dev, not here. No
+      # `eas submit` step — store submission is a separate, manual step
+      # (docs/RELEASE.md #6) that needs Apple/Google listings this workflow
+      # has no business gating.
+      - name: eas build --profile preview --platform android
+        working-directory: apps/${{ matrix.app }}
+        run: eas build --profile preview --platform android --non-interactive --no-wait
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}

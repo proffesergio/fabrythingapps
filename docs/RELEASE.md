@@ -135,8 +135,9 @@ profile's `env` block before building.
 
 ## 8. CI scope (what does and doesn't run automatically)
 
-`.github/workflows/mobile-ci.yml` runs on every pull request and on pushes to
-`main`/`master`:
+`.github/workflows/mobile-ci.yml` has two jobs.
+
+**`test`** runs on every pull request and on pushes to `main`/`master`:
 
 1. checkout
 2. `actions/setup-node@v4` (Node 20, npm cache)
@@ -148,8 +149,16 @@ profile's `env` block before building.
    worker, to avoid a known jest-expo/testing-library flake under concurrent
    test execution
 
-CI does **not** run `eas build` or `eas submit` — those require an
-authenticated EAS/Expo account that does not exist yet in this project, and
-are meant to be run manually by the owner following the steps above (or
-wired into a separate, manually-triggered workflow later, once accounts
-exist).
+**`build`** runs `eas build --profile preview --platform android
+--non-interactive --no-wait` for each app (a matrix job — customer, rider,
+restaurant), producing the same installable APK described in §3. It only
+runs on a push to `main`/`master` (not on pull requests, to avoid burning EAS
+build minutes on every PR) **and** only when the `EXPO_TOKEN` repository
+secret is set. Until step 1 above is done and that secret is added
+(Settings → Secrets and variables → Actions → New repository secret, value
+from an Expo access token — Account settings → Access tokens on expo.dev),
+the job's `if:` evaluates false and it is skipped for every run, so the
+workflow stays green with no code change required. Once the secret exists it
+starts building automatically on every push to main. It does **not** run
+`eas submit` — store submission stays a manual step (§6) that needs
+Apple/Google listings CI has no business gating.
