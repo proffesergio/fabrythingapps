@@ -2,7 +2,11 @@ import { ExpoConfig } from 'expo/config';
 
 const config: ExpoConfig = {
   name: 'Fabrything',
-  slug: 'fabrything-customer',
+  // Must match the slug of the EAS project `extra.eas.projectId` points at,
+  // or `eas build` refuses with a project-config mismatch. This app is the
+  // flagship, so it owns the plain `fabrything` project; the other two are
+  // `fabrything-rider` and `fabrything-partner`.
+  slug: 'fabrything',
   scheme: 'fabrythingcustomer',
   version: '1.0.0',
   orientation: 'portrait',
