@@ -16,4 +16,7 @@ export const endpoints = {
   storeCart: 'store/cart/',
   storeCartMerge: 'store/cart/merge/',
   storeOrders: 'store/orders/',
+  storeOrderList: 'store/orders/list/',
+  storeOrderDetail: (id: number | string) => `store/orders/${id}/`,
+  storeOrderCancel: (id: number | string) => `store/orders/${id}/cancel/`,
 } as const;

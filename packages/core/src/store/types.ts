@@ -129,3 +129,92 @@ export interface PaginatedResult<T> {
   currentPage: number;
   pageSize: number;
 }
+
+// ─── Orders (Task 5) ──────────────────────────────────────────────────────
+// Shapes returned by `store/orders/list/`, `store/orders/<pk>/` and
+// `store/orders/<pk>/cancel/` — see `CustomerOrderListSerializer` /
+// `CustomerOrderDetailSerializer` in
+// `../../../fabrythingweb/backend/EcommerceInventory/storefront/serializers.py`
+// and the `Order` state machine in `orders/models.py`.
+
+export type OrderStatus =
+  | 'PENDING_VERIFICATION'
+  | 'CONFIRMED'
+  | 'OUT_FOR_DELIVERY'
+  | 'DELIVERED'
+  | 'CANCELED'
+  | 'RETURNED';
+
+// Mirrors `Order.ALLOWED_TRANSITIONS` — the statuses from which CANCELED is
+// a legal transition. Used client-side only to decide whether to *offer* the
+// cancel action; the server has the final word (a 400 with a clear message
+// covers a race where the status moved on between page load and tap).
+export const CANCELABLE_ORDER_STATUSES: OrderStatus[] = ['PENDING_VERIFICATION', 'CONFIRMED', 'OUT_FOR_DELIVERY'];
+
+export interface OrderListItem {
+  id: number;
+  order_number: string;
+  status: OrderStatus;
+  status_display: string;
+  payment_method: string;
+  // DRF DecimalField serializes as a string ("1200.00"), not a JSON number —
+  // same trap as ProductVariant's price fields above. These are ModelSerializer
+  // auto-inferred fields (unlike PlaceOrderResult, which the view builds by
+  // hand with float()), so they stay strings here.
+  subtotal: string;
+  shipping_amount: string;
+  total_amount: string;
+  currency: string;
+  contact_name: string;
+  contact_phone: string;
+  item_count: number;
+  created_at: string;
+}
+
+export interface OrderLineItem {
+  id: number;
+  product_name: string;
+  product_slug: string | null;
+  product_image: string | null;
+  sku: string;
+  size: string;
+  color: string;
+  unit_price: string;
+  quantity: number;
+  line_total: string;
+}
+
+// `from_status` is `""` on the very first entry — order creation logs
+// `from_status=""` (see `place_cod_order` in
+// `../../../fabrythingweb/backend/EcommerceInventory/orders/services.py`),
+// since there is no prior status. Ordered ascending by `created_at`
+// (`OrderStatusLog.Meta.ordering`), so this list is ready to render as a
+// timeline oldest-first with no client-side re-sort.
+export interface OrderStatusLogEntry {
+  from_status: OrderStatus | '';
+  to_status: OrderStatus;
+  reason: string;
+  created_at: string;
+}
+
+export interface OrderShippingAddress {
+  address_type: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  country: string;
+}
+
+export type OrderDetail = OrderListItem & {
+  shipping_address: OrderShippingAddress;
+  notes: string;
+  canceled_reason: string;
+  items: OrderLineItem[];
+  status_logs: OrderStatusLogEntry[];
+};
+
+export interface OrderListParams {
+  page?: number;
+  pageSize?: number;
+}

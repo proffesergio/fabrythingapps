@@ -15,5 +15,6 @@ export * from './store/errors';
 export * from './store/categories';
 export * from './store/products';
 export * from './store/config';
+export * from './store/orders';
 export * from './cart';
 export * from './orders';
