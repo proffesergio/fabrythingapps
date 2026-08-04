@@ -1,5 +1,6 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
+import { screen, waitFor } from '@testing-library/react-native';
 import ProductList from './products';
+import { renderFlushed, pressFlushed } from '../../src/test-utils';
 
 const mockFetchProducts = jest.fn();
 const mockPush = jest.fn();
@@ -52,7 +53,7 @@ const sampleProduct = {
 
 test('renders products from the API, scoped to the category param', async () => {
   mockFetchProducts.mockResolvedValue({ items: [sampleProduct], totalPages: 1, totalItems: 1, currentPage: 1, pageSize: 20 });
-  await render(<ProductList />);
+  await renderFlushed(<ProductList />);
   await waitFor(() => expect(screen.getByText('Cotton Panjabi')).toBeTruthy());
   expect(mockFetchProducts).toHaveBeenCalledWith(
     {},
@@ -68,14 +69,14 @@ test('flags a prescription-only product instead of hiding it', async () => {
     currentPage: 1,
     pageSize: 20,
   });
-  await render(<ProductList />);
+  await renderFlushed(<ProductList />);
   await waitFor(() => expect(screen.getByText('Paracetamol')).toBeTruthy());
   expect(screen.getByText('Rx')).toBeTruthy();
 });
 
 test('shows a Load more footer when another page exists and fetches it on press', async () => {
   mockFetchProducts.mockResolvedValueOnce({ items: [sampleProduct], totalPages: 2, totalItems: 21, currentPage: 1, pageSize: 20 });
-  await render(<ProductList />);
+  await renderFlushed(<ProductList />);
   await waitFor(() => expect(screen.getByText('Cotton Panjabi')).toBeTruthy());
 
   mockFetchProducts.mockResolvedValueOnce({
@@ -85,7 +86,7 @@ test('shows a Load more footer when another page exists and fetches it on press'
     currentPage: 2,
     pageSize: 20,
   });
-  fireEvent.press(screen.getByText('loadMore'));
+  await pressFlushed(screen.getByText('loadMore'));
   await waitFor(() => expect(screen.getByText('Second Page Item')).toBeTruthy());
   // Both pages stay in the list — Load more appends rather than replaces.
   expect(screen.getByText('Cotton Panjabi')).toBeTruthy();
@@ -93,13 +94,13 @@ test('shows a Load more footer when another page exists and fetches it on press'
 
 test('shows an empty state when there are no products', async () => {
   mockFetchProducts.mockResolvedValue({ items: [], totalPages: 1, totalItems: 0, currentPage: 1, pageSize: 20 });
-  await render(<ProductList />);
+  await renderFlushed(<ProductList />);
   await waitFor(() => expect(screen.getByText('noProducts')).toBeTruthy());
 });
 
 test('shows an error state with a retry action', async () => {
   mockFetchProducts.mockRejectedValue(new Error('Network down'));
-  await render(<ProductList />);
+  await renderFlushed(<ProductList />);
   await waitFor(() => expect(screen.getByText('Network down')).toBeTruthy());
   expect(screen.getByText('retry')).toBeTruthy();
 });

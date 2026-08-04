@@ -2,8 +2,17 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 import { getApiBaseUrl } from '../env';
 import { TokenStore } from './tokenStore';
 
+// The API host (Render free tier) sleeps when idle -- the first request
+// after a nap can take ~30s while the dyno wakes up. A 15s timeout used to
+// cut that request off before the server had a chance to answer, turning a
+// perfectly good cold-start request into a client-side timeout error. 45s
+// gives the wake-up window room; screens pair this with
+// `useSlowRequestHint` so a slow-but-succeeding request still gets an
+// explanation instead of just spinning.
+export const API_TIMEOUT_MS = 45000;
+
 export function createApiClient(store: TokenStore): AxiosInstance {
-  const api = axios.create({ baseURL: getApiBaseUrl(), timeout: 15000 });
+  const api = axios.create({ baseURL: getApiBaseUrl(), timeout: API_TIMEOUT_MS });
 
   api.interceptors.request.use(async (config) => {
     const access = await store.getAccess();

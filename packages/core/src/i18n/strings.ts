@@ -38,7 +38,12 @@ export const strings = {
         cancelOrder: 'Cancel order', cancelingOrder: 'Cancelling…',
         cancelOrderFailed: 'Could not cancel your order.',
         orderCanceled: 'This order has been canceled.',
-        orderNotCancelable: 'This order can no longer be canceled.' },
+        orderNotCancelable: 'This order can no longer be canceled.',
+        // Task 7 polish: loading/offline/a11y copy
+        slowRequestHint: "This is taking longer than usual — our server may be waking up. Hang tight.",
+        rxBadge: 'Rx',
+        loginFailed: 'Login failed. Check your phone number and password and try again.',
+        pullToRefresh: 'Pull to refresh' },
   bn: { login: 'লগ ইন', phone: 'ফোন নম্বর', password: 'পাসওয়ার্ড', available: 'উপলব্ধ',
         offline: 'আপনি অফলাইন', retry: 'আবার চেষ্টা', restaurants: 'রেস্তোরাঁ',
         categories: 'বিভাগসমূহ', noCategories: 'কোনো বিভাগ নেই।',
@@ -78,6 +83,11 @@ export const strings = {
         cancelOrder: 'অর্ডার বাতিল করুন', cancelingOrder: 'বাতিল করা হচ্ছে…',
         cancelOrderFailed: 'আপনার অর্ডার বাতিল করা যায়নি।',
         orderCanceled: 'এই অর্ডারটি বাতিল করা হয়েছে।',
-        orderNotCancelable: 'এই অর্ডারটি আর বাতিল করা যাবে না।' },
+        orderNotCancelable: 'এই অর্ডারটি আর বাতিল করা যাবে না।',
+        // Task 7 polish: loading/offline/a11y copy
+        slowRequestHint: 'এতে স্বাভাবিকের চেয়ে বেশি সময় লাগছে — আমাদের সার্ভার হয়তো চালু হচ্ছে। একটু অপেক্ষা করুন।',
+        rxBadge: 'প্রেসক্রিপশন',
+        loginFailed: 'লগ ইন ব্যর্থ হয়েছে। আপনার ফোন নম্বর ও পাসওয়ার্ড যাচাই করে আবার চেষ্টা করুন।',
+        pullToRefresh: 'রিফ্রেশ করতে টানুন' },
 } as const;
 export type StringKey = keyof typeof strings['en'];

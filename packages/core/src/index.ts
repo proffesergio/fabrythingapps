@@ -18,3 +18,4 @@ export * from './store/config';
 export * from './store/orders';
 export * from './cart';
 export * from './orders';
+export * from './net/slowRequestHint';

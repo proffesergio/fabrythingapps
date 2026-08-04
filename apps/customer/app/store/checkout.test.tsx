@@ -1,5 +1,6 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { screen, waitFor } from '@testing-library/react-native';
 import Checkout from './checkout';
+import { renderFlushed, pressFlushed } from '../../src/test-utils';
 
 const mockPush = jest.fn();
 const mockPlaceOrder = jest.fn();
@@ -58,8 +59,8 @@ test('successful order placement shows the server-resolved shipping and total ve
     status: 'PLACED',
   });
 
-  await render(<Checkout />);
-  fireEvent.press(screen.getByText('placeOrder'));
+  await renderFlushed(<Checkout />);
+  await pressFlushed(screen.getByText('placeOrder'));
 
   await waitFor(() => expect(screen.getByText('orderPlaced')).toBeTruthy());
   expect(screen.getByText(/ORD-0042/)).toBeTruthy();
@@ -75,8 +76,8 @@ test('field validation errors are rendered against the right input', async () =>
     }),
   );
 
-  await render(<Checkout />);
-  fireEvent.press(screen.getByText('placeOrder'));
+  await renderFlushed(<Checkout />);
+  await pressFlushed(screen.getByText('placeOrder'));
 
   await waitFor(() => expect(screen.getByText('Enter a valid phone number.')).toBeTruthy());
   // Not shown as a generic banner-only message with no field context.
@@ -87,8 +88,8 @@ test('an Rx-blocked rejection shows a clear message instead of a generic failure
   mockPlaceOrder.mockRejectedValue(new FakeStoreApiError('Could not place order', ['X requires a prescription and is not yet available for online purchase.']));
   mockIsRxBlockedError.mockReturnValue(true);
 
-  await render(<Checkout />);
-  fireEvent.press(screen.getByText('placeOrder'));
+  await renderFlushed(<Checkout />);
+  await pressFlushed(screen.getByText('placeOrder'));
 
   await waitFor(() => expect(screen.getByText('rxBlocked')).toBeTruthy());
 });
@@ -97,8 +98,8 @@ test('a generic failure with no field_errors shows a fallback message', async ()
   mockPlaceOrder.mockRejectedValue(new FakeStoreApiError('Could not place order', ['Only 1 left of Cotton Panjabi (M).']));
   mockIsRxBlockedError.mockReturnValue(false);
 
-  await render(<Checkout />);
-  fireEvent.press(screen.getByText('placeOrder'));
+  await renderFlushed(<Checkout />);
+  await pressFlushed(screen.getByText('placeOrder'));
 
   await waitFor(() => expect(screen.getByText('Only 1 left of Cotton Panjabi (M).')).toBeTruthy());
 });

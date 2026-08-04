@@ -1,5 +1,5 @@
 import MockAdapter from 'axios-mock-adapter';
-import { createApiClient } from './client';
+import { createApiClient, API_TIMEOUT_MS } from './client';
 
 const memStore = () => {
   let a = 'A', r = 'R';
@@ -7,6 +7,12 @@ const memStore = () => {
     setTokens: async (na: string, nr: string) => { a = na; r = nr; },
     clear: async () => { a = ''; r = ''; } };
 };
+
+test('timeout is long enough to survive a Render free-tier cold start', () => {
+  const api = createApiClient(memStore());
+  expect(api.defaults.timeout).toBe(API_TIMEOUT_MS);
+  expect(api.defaults.timeout).toBeGreaterThanOrEqual(30000);
+});
 
 test('attaches bearer token', async () => {
   const store = memStore();

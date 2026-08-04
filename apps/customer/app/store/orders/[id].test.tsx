@@ -1,5 +1,6 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
+import { screen, waitFor } from '@testing-library/react-native';
 import OrderDetailScreen from './[id]';
+import { renderFlushed, pressFlushed } from '../../../src/test-utils';
 
 const mockFetchOrderDetail = jest.fn();
 const mockCancelOrder = jest.fn();
@@ -85,7 +86,7 @@ const baseOrder = {
 test('renders the order detail with a status timeline', async () => {
   mockAuthState = { role: 'Customer', loading: false };
   mockFetchOrderDetail.mockResolvedValue(baseOrder);
-  await render(<OrderDetailScreen />);
+  await renderFlushed(<OrderDetailScreen />);
 
   await waitFor(() => expect(screen.getByText('ORD-0007')).toBeTruthy());
   expect(screen.getByText('Cotton Panjabi (M)', { exact: false })).toBeTruthy();
@@ -97,7 +98,7 @@ test('renders the order detail with a status timeline', async () => {
 test('a non-cancelable status shows the not-cancelable message instead of a button', async () => {
   mockAuthState = { role: 'Customer', loading: false };
   mockFetchOrderDetail.mockResolvedValue({ ...baseOrder, status: 'DELIVERED', status_display: 'Delivered' });
-  await render(<OrderDetailScreen />);
+  await renderFlushed(<OrderDetailScreen />);
 
   await waitFor(() => expect(screen.getByText('ORD-0007')).toBeTruthy());
   expect(screen.getByText('orderNotCancelable')).toBeTruthy();
@@ -111,10 +112,10 @@ test('cancel succeeds and reloads the order', async () => {
     .mockResolvedValueOnce({ ...baseOrder, status: 'CANCELED', status_display: 'Canceled', canceled_reason: 'Canceled by customer' });
   mockCancelOrder.mockResolvedValue({ status: 'CANCELED' });
 
-  await render(<OrderDetailScreen />);
+  await renderFlushed(<OrderDetailScreen />);
   await waitFor(() => expect(screen.getByText('cancelOrder')).toBeTruthy());
 
-  fireEvent.press(screen.getByText('cancelOrder'));
+  await pressFlushed(screen.getByText('cancelOrder'));
 
   await waitFor(() => expect(screen.getByText('Canceled by customer')).toBeTruthy());
   expect(mockCancelOrder).toHaveBeenCalledWith({}, '7');
@@ -126,10 +127,10 @@ test('a rejected cancel on a non-cancellable order shows a clear message', async
   mockFetchOrderDetail.mockResolvedValue(baseOrder);
   mockCancelOrder.mockRejectedValue(new FakeStoreApiError('Not allowed', ['This order can no longer be canceled']));
 
-  await render(<OrderDetailScreen />);
+  await renderFlushed(<OrderDetailScreen />);
   await waitFor(() => expect(screen.getByText('cancelOrder')).toBeTruthy());
 
-  fireEvent.press(screen.getByText('cancelOrder'));
+  await pressFlushed(screen.getByText('cancelOrder'));
 
   await waitFor(() => expect(screen.getByText('This order can no longer be canceled')).toBeTruthy());
   // The order is not silently marked canceled on a failed attempt.
@@ -138,7 +139,7 @@ test('a rejected cancel on a non-cancellable order shows a clear message', async
 
 test('redirects to login when signed out', async () => {
   mockAuthState = { role: null, loading: false };
-  await render(<OrderDetailScreen />);
+  await renderFlushed(<OrderDetailScreen />);
   await waitFor(() => expect(screen.getByText('redirect:/login')).toBeTruthy());
   expect(mockFetchOrderDetail).not.toHaveBeenCalled();
 });

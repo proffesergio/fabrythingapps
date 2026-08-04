@@ -1,6 +1,6 @@
 import axios from 'axios';
 import MockAdapter from 'axios-mock-adapter';
-import { StoreApiError, toStoreApiError } from './errors';
+import { StoreApiError, toStoreApiError, isNetworkError } from './errors';
 
 test('maps the {errors, field_errors, message} error envelope', async () => {
   const api = axios.create();
@@ -36,4 +36,24 @@ test('falls back gracefully for a non-axios error', () => {
   expect(err.message).toBe('network down');
   expect(err.errors).toEqual([]);
   expect(err.fieldErrors).toEqual({});
+});
+
+test('isNetworkError: true when axios never got a response (offline, DNS, timeout)', async () => {
+  const api = axios.create();
+  const mock = new MockAdapter(api);
+  mock.onGet('/store/products/').networkError();
+
+  try {
+    await api.get('/store/products/');
+    throw new Error('should have rejected');
+  } catch (raw) {
+    const err = toStoreApiError(raw);
+    expect(err.status).toBeUndefined();
+    expect(isNetworkError(err)).toBe(true);
+  }
+});
+
+test('isNetworkError: false when the server answered with an error status', () => {
+  const err = new StoreApiError('Validation error', ['bad'], {}, 400);
+  expect(isNetworkError(err)).toBe(false);
 });
