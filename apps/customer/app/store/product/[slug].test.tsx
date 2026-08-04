@@ -1,5 +1,6 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
+import { screen, waitFor } from '@testing-library/react-native';
 import ProductDetail from './[slug]';
+import { renderFlushed, pressFlushed } from '../../../src/test-utils';
 
 const mockFetchProductDetail = jest.fn();
 const mockAddItem = jest.fn();
@@ -11,10 +12,21 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
 }));
 jest.mock('@fabrything/core', () => ({
+  ...jest.requireActual('@fabrything/core'),
   t: (k: string) => k,
   fetchProductDetail: (...args: unknown[]) => mockFetchProductDetail(...args),
   useCart: () => ({ addItem: mockAddItem }),
 }));
+
+class FakeStoreApiError extends Error {
+  errors: string[];
+  status?: number;
+  constructor(message: string, errors: string[] = [], status?: number) {
+    super(message);
+    this.errors = errors;
+    this.status = status;
+  }
+}
 
 afterEach(() => {
   mockFetchProductDetail.mockReset();
@@ -71,7 +83,7 @@ const sampleDetail = {
 
 test('renders gallery, price with discount, sizes, stock and shipping note', async () => {
   mockFetchProductDetail.mockResolvedValue(sampleDetail);
-  await render(<ProductDetail />);
+  await renderFlushed(<ProductDetail />);
   await waitFor(() => expect(screen.getByText('Cotton Panjabi')).toBeTruthy());
 
   expect(screen.getByText('999.00')).toBeTruthy();
@@ -85,30 +97,36 @@ test('renders gallery, price with discount, sizes, stock and shipping note', asy
 
 test('surfaces the Rx state instead of hiding the product', async () => {
   mockFetchProductDetail.mockResolvedValue({ ...sampleDetail, requires_prescription: true });
-  await render(<ProductDetail />);
+  await renderFlushed(<ProductDetail />);
   await waitFor(() => expect(screen.getByText('Cotton Panjabi')).toBeTruthy());
   expect(screen.getByText('prescriptionRequired')).toBeTruthy();
 });
 
 test('shows out-of-stock state when total_stock is zero', async () => {
   mockFetchProductDetail.mockResolvedValue({ ...sampleDetail, total_stock: 0 });
-  await render(<ProductDetail />);
+  await renderFlushed(<ProductDetail />);
   await waitFor(() => expect(screen.getByText('outOfStock')).toBeTruthy());
 });
 
 test('shows an error state with a retry action', async () => {
-  mockFetchProductDetail.mockRejectedValue(new Error('Network down'));
-  await render(<ProductDetail />);
-  await waitFor(() => expect(screen.getByText('Network down')).toBeTruthy());
+  mockFetchProductDetail.mockRejectedValue(new FakeStoreApiError('Server error', ['Server error'], 500));
+  await renderFlushed(<ProductDetail />);
+  await waitFor(() => expect(screen.getByText('Server error')).toBeTruthy());
   expect(screen.getByText('retry')).toBeTruthy();
+});
+
+test('shows an offline hint when the request never reaches the server', async () => {
+  mockFetchProductDetail.mockRejectedValue(new FakeStoreApiError('Network Error', []));
+  await renderFlushed(<ProductDetail />);
+  await waitFor(() => expect(screen.getByText('offline')).toBeTruthy());
 });
 
 test('adding to cart passes the selected variant identity, not the product', async () => {
   mockFetchProductDetail.mockResolvedValue(sampleDetail);
-  await render(<ProductDetail />);
+  await renderFlushed(<ProductDetail />);
   await waitFor(() => expect(screen.getByText('Cotton Panjabi')).toBeTruthy());
 
-  fireEvent.press(screen.getByText('addToCart'));
+  await pressFlushed(screen.getByText('addToCart'));
 
   expect(mockAddItem).toHaveBeenCalledWith(
     expect.objectContaining({
@@ -125,12 +143,12 @@ test('adding to cart passes the selected variant identity, not the product', asy
 
 test('view cart navigates to /store/cart after adding', async () => {
   mockFetchProductDetail.mockResolvedValue(sampleDetail);
-  await render(<ProductDetail />);
+  await renderFlushed(<ProductDetail />);
   await waitFor(() => expect(screen.getByText('Cotton Panjabi')).toBeTruthy());
 
-  fireEvent.press(screen.getByText('addToCart'));
+  await pressFlushed(screen.getByText('addToCart'));
   await waitFor(() => expect(screen.getByText('viewCart')).toBeTruthy());
-  fireEvent.press(screen.getByText('viewCart'));
+  await pressFlushed(screen.getByText('viewCart'));
 
   expect(mockPush).toHaveBeenCalledWith('/store/cart');
 });

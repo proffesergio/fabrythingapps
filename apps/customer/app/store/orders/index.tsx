@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, Button } from 'react-native';
+import { FlatList, RefreshControl, Text, TouchableOpacity, View } from 'react-native';
 import { Redirect, useRouter } from 'expo-router';
-import { fetchOrders, t, useAuth, OrderListItem } from '@fabrything/core';
+import { fetchOrders, isNetworkError, t, useAuth, OrderListItem, StoreApiError } from '@fabrything/core';
 import { api } from '../../../src/providers';
+import { EmptyView, ErrorView, LoadingView, MIN_TAP_TARGET } from '../../../src/components/StateViews';
+
+function messageFor(error: unknown): string {
+  const err = error as StoreApiError;
+  return isNetworkError(err) ? t('offline', 'en') : err.errors?.[0] || err.message || t('somethingWrong', 'en');
+}
 
 // Order history: `store/orders/list/` is IsAuthenticated, unlike the public
 // catalog screens, so this redirects to login rather than showing an empty
@@ -11,43 +17,48 @@ export default function OrderList() {
   const router = useRouter();
   const { role, loading: authLoading } = useAuth();
   const [orders, setOrders] = useState<OrderListItem[] | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(() => {
+  const load = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
+    if (mode === 'refresh') setRefreshing(true);
     setError(null);
-    setOrders(null);
-    fetchOrders(api)
-      .then((res) => setOrders(res.items))
-      .catch((e: { message?: string }) => setError(e?.message || t('somethingWrong', 'en')));
+    try {
+      const res = await fetchOrders(api);
+      setOrders(res.items);
+    } catch (e) {
+      setError(messageFor(e));
+    } finally {
+      setRefreshing(false);
+    }
   }, []);
 
   useEffect(() => {
-    if (role) load();
+    if (role) load('initial');
   }, [role, load]);
 
-  if (authLoading) return <ActivityIndicator style={{ marginTop: 40 }} />;
+  if (authLoading) return <LoadingView />;
   if (!role) return <Redirect href="/login" />;
 
-  if (error) {
-    return (
-      <View style={{ padding: 24, gap: 12 }}>
-        <Text>{error}</Text>
-        <Button title={t('retry', 'en')} onPress={load} />
-      </View>
-    );
+  if (error && orders === null) {
+    return <ErrorView message={error} onRetry={() => load('initial')} />;
   }
 
-  if (orders === null) return <ActivityIndicator style={{ marginTop: 40 }} />;
+  if (orders === null) return <LoadingView />;
 
   return (
     <FlatList
+      testID="order-list"
       data={orders}
       keyExtractor={(o) => String(o.id)}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={() => load('refresh')} accessibilityLabel={t('pullToRefresh', 'en')} />
+      }
       renderItem={({ item }) => (
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel={item.order_number}
-          style={{ padding: 16, borderBottomWidth: 1, borderColor: '#eee', gap: 4 }}
+          style={{ padding: 16, minHeight: MIN_TAP_TARGET, borderBottomWidth: 1, borderColor: '#eee', gap: 4 }}
           onPress={() => router.push({ pathname: '/store/orders/[id]', params: { id: String(item.id) } })}
         >
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -64,7 +75,7 @@ export default function OrderList() {
           </View>
         </TouchableOpacity>
       )}
-      ListEmptyComponent={<Text style={{ padding: 24 }}>{t('noOrders', 'en')}</Text>}
+      ListEmptyComponent={<EmptyView message={t('noOrders', 'en')} />}
     />
   );
 }

@@ -1,5 +1,6 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
+import { act, screen, waitFor } from '@testing-library/react-native';
 import ProductList from './products';
+import { renderFlushed, pressFlushed } from '../../src/test-utils';
 
 const mockFetchProducts = jest.fn();
 const mockPush = jest.fn();
@@ -10,9 +11,20 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ category: 'men', name: 'Men' }),
 }));
 jest.mock('@fabrything/core', () => ({
+  ...jest.requireActual('@fabrything/core'),
   t: (k: string) => k,
   fetchProducts: (...args: unknown[]) => mockFetchProducts(...args),
 }));
+
+class FakeStoreApiError extends Error {
+  errors: string[];
+  status?: number;
+  constructor(message: string, errors: string[] = [], status?: number) {
+    super(message);
+    this.errors = errors;
+    this.status = status;
+  }
+}
 
 afterEach(() => {
   mockFetchProducts.mockReset();
@@ -52,7 +64,7 @@ const sampleProduct = {
 
 test('renders products from the API, scoped to the category param', async () => {
   mockFetchProducts.mockResolvedValue({ items: [sampleProduct], totalPages: 1, totalItems: 1, currentPage: 1, pageSize: 20 });
-  await render(<ProductList />);
+  await renderFlushed(<ProductList />);
   await waitFor(() => expect(screen.getByText('Cotton Panjabi')).toBeTruthy());
   expect(mockFetchProducts).toHaveBeenCalledWith(
     {},
@@ -68,14 +80,14 @@ test('flags a prescription-only product instead of hiding it', async () => {
     currentPage: 1,
     pageSize: 20,
   });
-  await render(<ProductList />);
+  await renderFlushed(<ProductList />);
   await waitFor(() => expect(screen.getByText('Paracetamol')).toBeTruthy());
-  expect(screen.getByText('Rx')).toBeTruthy();
+  expect(screen.getByText('rxBadge')).toBeTruthy();
 });
 
 test('shows a Load more footer when another page exists and fetches it on press', async () => {
   mockFetchProducts.mockResolvedValueOnce({ items: [sampleProduct], totalPages: 2, totalItems: 21, currentPage: 1, pageSize: 20 });
-  await render(<ProductList />);
+  await renderFlushed(<ProductList />);
   await waitFor(() => expect(screen.getByText('Cotton Panjabi')).toBeTruthy());
 
   mockFetchProducts.mockResolvedValueOnce({
@@ -85,7 +97,7 @@ test('shows a Load more footer when another page exists and fetches it on press'
     currentPage: 2,
     pageSize: 20,
   });
-  fireEvent.press(screen.getByText('loadMore'));
+  await pressFlushed(screen.getByText('loadMore'));
   await waitFor(() => expect(screen.getByText('Second Page Item')).toBeTruthy());
   // Both pages stay in the list — Load more appends rather than replaces.
   expect(screen.getByText('Cotton Panjabi')).toBeTruthy();
@@ -93,13 +105,50 @@ test('shows a Load more footer when another page exists and fetches it on press'
 
 test('shows an empty state when there are no products', async () => {
   mockFetchProducts.mockResolvedValue({ items: [], totalPages: 1, totalItems: 0, currentPage: 1, pageSize: 20 });
-  await render(<ProductList />);
+  await renderFlushed(<ProductList />);
   await waitFor(() => expect(screen.getByText('noProducts')).toBeTruthy());
 });
 
 test('shows an error state with a retry action', async () => {
-  mockFetchProducts.mockRejectedValue(new Error('Network down'));
-  await render(<ProductList />);
-  await waitFor(() => expect(screen.getByText('Network down')).toBeTruthy());
+  mockFetchProducts.mockRejectedValue(new FakeStoreApiError('Server error', ['Server error'], 500));
+  await renderFlushed(<ProductList />);
+  await waitFor(() => expect(screen.getByText('Server error')).toBeTruthy());
   expect(screen.getByText('retry')).toBeTruthy();
+});
+
+test('shows an offline hint instead of a raw network message when the request never reaches the server', async () => {
+  mockFetchProducts.mockRejectedValue(new FakeStoreApiError('Network Error', []));
+  await renderFlushed(<ProductList />);
+  await waitFor(() => expect(screen.getByText('offline')).toBeTruthy());
+});
+
+test('retry re-fetches and clears the error state on success', async () => {
+  mockFetchProducts.mockRejectedValueOnce(new FakeStoreApiError('Server error', ['Server error'], 500));
+  await renderFlushed(<ProductList />);
+  await waitFor(() => expect(screen.getByText('Server error')).toBeTruthy());
+
+  mockFetchProducts.mockResolvedValueOnce({ items: [sampleProduct], totalPages: 1, totalItems: 1, currentPage: 1, pageSize: 20 });
+  await pressFlushed(screen.getByText('retry'));
+  await waitFor(() => expect(screen.getByText('Cotton Panjabi')).toBeTruthy());
+  expect(screen.queryByText('Server error')).toBeNull();
+});
+
+test('pull-to-refresh re-fetches the first page', async () => {
+  mockFetchProducts.mockResolvedValueOnce({ items: [sampleProduct], totalPages: 1, totalItems: 1, currentPage: 1, pageSize: 20 });
+  await renderFlushed(<ProductList />);
+  await waitFor(() => expect(screen.getByText('Cotton Panjabi')).toBeTruthy());
+
+  mockFetchProducts.mockResolvedValueOnce({
+    items: [{ ...sampleProduct, name: 'Refreshed Panjabi' }],
+    totalPages: 1,
+    totalItems: 1,
+    currentPage: 1,
+    pageSize: 20,
+  });
+  const list = screen.getByTestId('product-list');
+  await act(async () => {
+    list.props.refreshControl.props.onRefresh();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  });
+  await waitFor(() => expect(screen.getByText('Refreshed Panjabi')).toBeTruthy());
 });

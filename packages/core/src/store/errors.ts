@@ -18,6 +18,15 @@ export class StoreApiError extends Error {
   }
 }
 
+// No `status` means axios never got an HTTP response at all -- a real
+// network failure (offline, DNS, timeout) rather than the server answering
+// with an error body. Screens use this to show "you appear to be offline"
+// instead of a raw axios message like "Network Error" or "timeout of 45000ms
+// exceeded", which means nothing to a customer.
+export function isNetworkError(error: StoreApiError): boolean {
+  return error.status === undefined;
+}
+
 function toStringArray(value: unknown): string[] {
   if (Array.isArray(value)) return value.map(String);
   if (typeof value === 'string' && value) return [value];

@@ -1,15 +1,19 @@
 import { useState } from 'react';
-import { View, Text, TextInput, Button, ScrollView } from 'react-native';
+import { View, Text, TextInput, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { placeOrder, isRxBlockedError, StoreApiError, useCart, t } from '@fabrything/core';
+import { placeOrder, isRxBlockedError, isNetworkError, useSlowRequestHint, useCart, t, StoreApiError } from '@fabrything/core';
 import { api } from '../../src/providers';
+import { PrimaryButton, SecondaryButton } from '../../src/components/StateViews';
 
 // COD checkout: address + contact, place order via store/orders/. On
 // failure, `field_errors` is read and each message shown against the right
 // input -- the error envelope is `{errors, field_errors, message}`, not
 // `{data}` (see `toStoreApiError`). A Rx-disabled rejection has no field
 // association (it's a whole-order policy block, not a bad input) so it's
-// shown as a clear banner instead of the raw backend sentence.
+// shown as a clear banner instead of the raw backend sentence. A real
+// network failure (the server never answered at all, e.g. still waking up
+// from a Render free-tier nap) gets the same honest "offline" message the
+// other screens use, not a raw axios string.
 export default function Checkout() {
   const router = useRouter();
   const { lines, clear } = useCart();
@@ -26,6 +30,7 @@ export default function Checkout() {
   const [formError, setFormError] = useState<string | null>(null);
   const [rxBlocked, setRxBlocked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const slow = useSlowRequestHint(submitting);
   const [result, setResult] = useState<{
     order_number: string;
     subtotal: number;
@@ -60,6 +65,8 @@ export default function Checkout() {
         setRxBlocked(true);
       } else if (Object.keys(err.fieldErrors ?? {}).length > 0) {
         setFieldErrors(err.fieldErrors);
+      } else if (isNetworkError(err)) {
+        setFormError(t('offline', 'en'));
       } else {
         setFormError(err.errors?.[0] || err.message || t('orderFailed', 'en'));
       }
@@ -85,7 +92,7 @@ export default function Checkout() {
         <Text style={{ fontWeight: '700' }}>
           {t('total', 'en')}: {result.total_amount} {result.currency}
         </Text>
-        <Button title={t('continueShopping', 'en')} onPress={() => router.push('/store')} />
+        <SecondaryButton title={t('continueShopping', 'en')} onPress={() => router.push('/store')} />
       </View>
     );
   }
@@ -95,20 +102,25 @@ export default function Checkout() {
       <Text style={{ fontSize: 18, fontWeight: '600' }}>{t('checkout', 'en')}</Text>
 
       {rxBlocked ? (
-        <View style={{ padding: 12, backgroundColor: '#FDECEA', borderRadius: 8 }}>
+        <View style={{ padding: 12, backgroundColor: '#FDECEA', borderRadius: 8 }} accessibilityRole="alert">
           <Text>{t('rxBlocked', 'en')}</Text>
         </View>
       ) : null}
-      {formError ? <Text style={{ color: '#E8452B' }}>{formError}</Text> : null}
+      {formError ? (
+        <Text style={{ color: '#E8452B' }} accessibilityRole="alert">
+          {formError}
+        </Text>
+      ) : null}
 
       <Text>{t('contactName', 'en')}</Text>
       <TextInput
         value={contactName}
         onChangeText={setContactName}
-        style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 10 }}
+        accessibilityLabel={t('contactName', 'en')}
+        style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 10, minHeight: 44 }}
       />
       {fieldErrors.contact_name?.map((msg) => (
-        <Text key={msg} style={{ color: '#E8452B' }}>
+        <Text key={msg} style={{ color: '#E8452B' }} accessibilityRole="alert">
           {msg}
         </Text>
       ))}
@@ -118,10 +130,11 @@ export default function Checkout() {
         value={contactPhone}
         onChangeText={setContactPhone}
         keyboardType="phone-pad"
-        style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 10 }}
+        accessibilityLabel={t('phone', 'en')}
+        style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 10, minHeight: 44 }}
       />
       {fieldErrors.contact_phone?.map((msg) => (
-        <Text key={msg} style={{ color: '#E8452B' }}>
+        <Text key={msg} style={{ color: '#E8452B' }} accessibilityRole="alert">
           {msg}
         </Text>
       ))}
@@ -132,10 +145,11 @@ export default function Checkout() {
       <TextInput
         value={address}
         onChangeText={setAddress}
-        style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 10 }}
+        accessibilityLabel={t('address', 'en')}
+        style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 10, minHeight: 44 }}
       />
       {fieldErrors['shipping_address.address']?.map((msg) => (
-        <Text key={msg} style={{ color: '#E8452B' }}>
+        <Text key={msg} style={{ color: '#E8452B' }} accessibilityRole="alert">
           {msg}
         </Text>
       ))}
@@ -144,10 +158,11 @@ export default function Checkout() {
       <TextInput
         value={city}
         onChangeText={setCity}
-        style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 10 }}
+        accessibilityLabel={t('city', 'en')}
+        style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 10, minHeight: 44 }}
       />
       {fieldErrors['shipping_address.city']?.map((msg) => (
-        <Text key={msg} style={{ color: '#E8452B' }}>
+        <Text key={msg} style={{ color: '#E8452B' }} accessibilityRole="alert">
           {msg}
         </Text>
       ))}
@@ -156,30 +171,34 @@ export default function Checkout() {
       <TextInput
         value={stateRegion}
         onChangeText={setStateRegion}
-        style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 10 }}
+        accessibilityLabel={t('stateRegion', 'en')}
+        style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 10, minHeight: 44 }}
       />
 
       <Text>{t('pincode', 'en')}</Text>
       <TextInput
         value={pincode}
         onChangeText={setPincode}
-        style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 10 }}
+        accessibilityLabel={t('pincode', 'en')}
+        style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 10, minHeight: 44 }}
       />
 
       <Text>{t('notes', 'en')}</Text>
       <TextInput
         value={notes}
         onChangeText={setNotes}
-        style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 10 }}
+        accessibilityLabel={t('notes', 'en')}
+        style={{ borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 10, minHeight: 44 }}
       />
 
       <Text style={{ color: '#8C7B6E' }}>{t('codNote', 'en')}</Text>
 
-      <Button
+      <PrimaryButton
         title={submitting ? t('placingOrder', 'en') : t('placeOrder', 'en')}
         disabled={submitting || lines.length === 0}
         onPress={onSubmit}
       />
+      {slow ? <Text style={{ color: '#8C7B6E', textAlign: 'center' }}>{t('slowRequestHint', 'en')}</Text> : null}
     </ScrollView>
   );
 }
