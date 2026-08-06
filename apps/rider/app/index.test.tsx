@@ -10,6 +10,10 @@ jest.mock('../src/providers', () => ({
   },
 }));
 jest.mock('../src/push', () => ({ registerPush: jest.fn() }));
+// Presence is covered on its own in src/presence.test.tsx; here it is mocked so
+// the screen's reaction to each state can be driven directly.
+const mockPresence = jest.fn(() => 'online');
+jest.mock('../src/presence', () => ({ useRiderPresence: () => mockPresence() }));
 jest.mock('expo-constants', () => ({ __esModule: true, default: { expoConfig: { version: '1.0.0' } } }));
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn() }),
@@ -28,6 +32,7 @@ jest.mock('@fabrything/core', () => ({
 
 afterEach(() => {
   mockUseAuth.mockReturnValue({ role: 'Rider', loading: false });
+  mockPresence.mockReturnValue('online');
 });
 
 test('shows rider name and a share-location control', async () => {
@@ -42,4 +47,18 @@ test('redirects to login when unauthenticated', async () => {
   const { getByTestId, queryByText } = await render(<Home />);
   expect(getByTestId('redirect')).toBeTruthy();
   expect(queryByText('R1')).toBeNull();
+});
+
+test('warns the rider when location is off, because dispatch will skip them', async () => {
+  mockPresence.mockReturnValue('no-location');
+  await render(<Home />);
+  // The whole point of the warning: "Available" is on, so without this the
+  // rider has no way to tell they are invisible to dispatch.
+  await waitFor(() => expect(screen.getByText('locationNeeded')).toBeTruthy());
+});
+
+test('confirms offers can arrive once presence is established', async () => {
+  mockPresence.mockReturnValue('online');
+  await render(<Home />);
+  await waitFor(() => expect(screen.getByText('receivingOffers')).toBeTruthy());
 });

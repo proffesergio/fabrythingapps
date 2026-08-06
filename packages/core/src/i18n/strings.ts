@@ -53,6 +53,9 @@ export const strings = {
         offerTaken: 'That offer is no longer available.',
         noOffers: 'No delivery offers right now. Stay online and we will ping you.',
         goOnlineToReceive: 'Go online to start receiving delivery offers.',
+        receivingOffers: 'Online — you can receive delivery offers.',
+        locationNeeded:
+            'Location is off, so you will NOT receive delivery offers. Allow location for Fabrything Rider in your phone settings.',
         myDeliveries: 'My deliveries', noActiveDeliveries: 'No active deliveries.',
         markPickedUp: 'Mark picked up', markDelivered: 'Mark delivered',
         earnings: 'Earnings', todayPayout: 'Today', lifetimePayout: 'Lifetime',
@@ -120,6 +123,9 @@ export const strings = {
         offerTaken: 'এই অফারটি আর নেই।',
         noOffers: 'এখন কোনো ডেলিভারির অফার নেই। অনলাইন থাকুন, আমরা জানাবো।',
         goOnlineToReceive: 'ডেলিভারির অফার পেতে অনলাইনে যান।',
+        receivingOffers: 'অনলাইন — আপনি ডেলিভারির অফার পাবেন।',
+        locationNeeded:
+            'লোকেশন বন্ধ আছে, তাই আপনি কোনো ডেলিভারির অফার পাবেন না। ফোনের সেটিংসে Fabrything Rider-এর জন্য লোকেশন চালু করুন।',
         myDeliveries: 'আমার ডেলিভারিসমূহ', noActiveDeliveries: 'চলমান কোনো ডেলিভারি নেই।',
         markPickedUp: 'পিকআপ হয়েছে', markDelivered: 'ডেলিভারি সম্পন্ন',
         earnings: 'আয়', todayPayout: 'আজ', lifetimePayout: 'সর্বমোট',

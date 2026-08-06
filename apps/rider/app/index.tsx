@@ -5,6 +5,7 @@ import Constants from 'expo-constants';
 import { useAuth, endpoints, fetchMobileConfig, isVersionSupported, setRiderAvailability, t } from '@fabrything/core';
 import { api } from '../src/providers';
 import { registerPush } from '../src/push';
+import { useRiderPresence } from '../src/presence';
 
 const APP = 'rider' as const;
 
@@ -16,6 +17,12 @@ export default function Home() {
   const [available, setAvailable] = useState(false);
   const [error, setError] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
+
+  // Availability is only one of the three things dispatch requires; this loop
+  // supplies the other two (presence + position). It lives on the home screen
+  // because expo-router's Stack keeps this screen mounted underneath /offer,
+  // /deliveries and /earnings, so the pings continue while the rider works.
+  const presence = useRiderPresence(available);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,8 +106,21 @@ export default function Home() {
           accessibilityLabel={t('availableForDeliveries')}
         />
       </View>
-      <Text style={{ color: '#8C7B6E', fontSize: 12, marginTop: -10 }}>
-        {available ? t('riderOnline') : t('goOnlineToReceive')}
+      {/* Says what dispatch actually thinks, not what the switch says. A rider
+          who is "Available" with location denied gets no work at all, and the
+          only thing worse than that is not telling them. */}
+      <Text
+        style={{
+          color: presence === 'no-location' ? '#B3261E' : '#8C7B6E',
+          fontSize: 12,
+          marginTop: -10,
+        }}
+      >
+        {presence === 'no-location'
+          ? t('locationNeeded')
+          : presence === 'online'
+            ? t('receivingOffers')
+            : t('goOnlineToReceive')}
       </Text>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
