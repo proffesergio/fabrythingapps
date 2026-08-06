@@ -24,10 +24,10 @@ const config: ExpoConfig = {
   // app.json cannot serve all three; `eas build` resolves the config from
   // the app directory it runs in (see .github/workflows/mobile-ci.yml,
   // which sets working-directory: apps/<app>).
-  owner: 'newell-team',
+  owner: 'fabrything',
   extra: {
     eas: {
-      projectId: '3d2bf863-0715-4144-88f9-ee2dcd9edfc2',
+      projectId: '71de8f41-cb30-4345-8d7a-51d61b863c7b',
     },
   },
   plugins: [
