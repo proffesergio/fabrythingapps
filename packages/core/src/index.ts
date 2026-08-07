@@ -21,4 +21,4 @@ export * from './orders';
 export * from './net/slowRequestHint';
 export * from './rider';
 export * from './vendor';
-export * from './food/status';
+export * from './food';
